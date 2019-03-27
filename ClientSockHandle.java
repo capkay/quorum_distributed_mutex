@@ -116,6 +116,60 @@ class ClientSockHandle
         read.start();		// start the thread	
     }
     
+    // method to send the REQUEST message with timestamp and file identifier
+    public synchronized void crit_request(int ts)
+    {
+        out.println("REQUEST");
+        out.println(ts);
+        out.println(my_c_id);
+    }
+
+    // method to send the REPLY message with file identifier
+    public synchronized void crit_reply(int ts)
+    {
+        out.println("GRANT");
+        out.println(ts);
+        out.println(my_c_id);
+    }
+
+    // method to send the REPLY message with file identifier
+    public synchronized void crit_release(int ts)
+    {
+        out.println("RELEASE");
+        out.println(ts);
+        out.println(my_c_id);
+    }
+
+    // methods to send setup related messages in the output stream
+    public void send_setup()
+    {
+	System.out.println("chain_setup to:"+remote_c_id);
+        out.println("chain_setup");
+    }
+
+    public void send_finish()
+    {
+        out.println("simulation_finish");
+    }
+
+    public void send_setup_finish()
+    {
+	System.out.println("setup_finish to:"+remote_c_id);
+        out.println("chain_setup_finish");
+    }
+    // method to process received reply message ( part of Ricard-Agrawala algorithm )
+    // takes received ID, filename
+    public void process_reply_message(int their_sn,int j)
+    {
+        System.out.println("process reply message");
+        synchronized(cnode.mutex)
+        {
+            cnode.mutex.sword.timestamp = cnode.mutex.sword.timestamp + 1;
+            cnode.mutex.sword.timestamp = Math.max(their_sn+1,cnode.mutex.sword.timestamp);
+            ++cnode.mutex.sword.replies_received;
+            System.out.println("replies received "+ cnode.mutex.sword.replies_received);
+        }
+    }
     // method to process incoming commands and data associated with them
     public int rx_cmd(BufferedReader cmd,PrintWriter out)
     {
@@ -149,6 +203,11 @@ class ClientSockHandle
                 cnode.end_program();
                 return 0;
             }
+            else if(cmd_in.equals("start_simulation"))
+            {
+    	        System.out.println("Trigger start from server!");
+                cnode.start_simulation();
+            }
             // send file metadata one by one to the requesting client
             else if(cmd_in.equals("ENQUIRY"))
             {
@@ -178,6 +237,14 @@ class ClientSockHandle
                 String content = in.readLine();
                 cnode.do_write_operation(filename,content);
                 out.println("EOM");
+            }
+            // got a REPLY message, process it
+            else if(cmd_in.equals("GRANT"))
+            {
+                int ts = Integer.valueOf(in.readLine());
+                int pid = Integer.valueOf(in.readLine());
+    	        System.out.println("GRANT received from PID "+pid);
+                process_reply_message(ts,pid);
             }
     	}
     	catch (IOException e) 

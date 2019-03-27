@@ -12,6 +12,7 @@ import java.security.MessageDigest;
 import java.text.*;
 import java.io.*;
 import java.net.*;
+import java.util.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Iterator;
@@ -79,8 +80,8 @@ class ServerSockHandle
             // and get some information from the remote initiator node
             if(rx_hdl == true)
             {
-    	        System.out.println("send cmd 1: setup socket to other server");
-                out.println("initial_setup_server");
+    	        System.out.println("send cmd 1: setup socket to other client");
+                out.println("initial_setup_client");
                 ip = in.readLine();
     	        System.out.println("ip:"+ip);
                 port=in.readLine();
@@ -92,9 +93,9 @@ class ServerSockHandle
     	        System.out.println("neighbor connection server rx_hdl, PID:"+ Integer.toString(remote_c_id)+ " ip:" + ip + " port = " + port);
                 // when this handshake is done
                 // add this object to the socket handle list as part of the main Client object
-                synchronized (s_list)
+                synchronized (c_list)
                 {
-                    s_list.put(remote_c_id,this);
+                    c_list.put(remote_c_id,this);
                 }
             }
         }
@@ -125,16 +126,59 @@ class ServerSockHandle
 
     // method to process received request message ( part of Ricard-Agrawala algorithm )
     // takes received sequence number, received ID, filename
-    public void process_request_message(int their_sn,int j, String filename)
+    public void process_request_message(int their_sn,int j)
     {
+        synchronized(snode.mutex)
+        {
+            if(!snode.mutex.sword.locked & snode.mutex.sword.queue.isEmpty())
+            {
+	        System.out.println("server already unlocked and queue is empty");
+                // first request
+                snode.mutex.sword.locked = true;
+                snode.mutex.sword.timestamp = snode.mutex.sword.timestamp + 1;
+                snode.mutex.sword.timestamp = Math.max(their_sn+1,snode.mutex.sword.timestamp);
+                // send GRANT message
+                crit_reply(snode.mutex.sword.timestamp);
+            }
+            else
+            {
+	        System.out.println("adding request to queue");
+                // add to queue
+                RequestData t = new RequestData(their_sn,j);
+                snode.mutex.sword.queue.add(t);
+            }
+        }
     }
 
     // method to process received reply message ( part of Ricard-Agrawala algorithm )
     // takes received ID, filename
-    public void process_reply_message(int j, String filename)
+    public void process_release_message(int their_sn,int j)
     {
+        synchronized(snode.mutex)
+        {
+            snode.mutex.sword.timestamp = snode.mutex.sword.timestamp + 1;
+            snode.mutex.sword.timestamp = Math.max(their_sn+1,snode.mutex.sword.timestamp);
+            if(snode.mutex.sword.queue.isEmpty() & snode.mutex.sword.locked)
+            {
+                snode.mutex.sword.locked = false;
+	        System.out.println("server unlocked");
+            }
+            else
+            {
+	        System.out.println("server sending reply from pending queue");
+                // pop from queue
+                RequestData t = snode.mutex.sword.queue.remove();
+                // send grant to that PID
+                c_list.get(t.id).crit_reply(snode.mutex.sword.timestamp);
+            }
+        }
     }
-    
+    // methods to send setup related messages in the output stream
+    public void send_start()
+    {
+	System.out.println("send_start to:"+remote_c_id);
+        out.println("start_simulation");
+    }
     // methods to send setup related messages in the output stream
     public void send_setup()
     {
@@ -154,67 +198,26 @@ class ServerSockHandle
     }
 
     // method to send the REQUEST message with timestamp and file identifier
-    public synchronized void crit_request(int ts,String filename)
+    public synchronized void crit_request(int ts)
     {
         out.println("REQUEST");
         out.println(ts);
         out.println(my_c_id);
-        out.println(filename);
     }
 
     // method to send the REPLY message with file identifier
-    public synchronized void crit_reply(String filename)
+    public synchronized void crit_reply(int ts)
     {
-        out.println("REPLY");
+	System.out.println("GRANT to "+remote_c_id);
+        out.println("GRANT");
+        out.println(ts);
         out.println(my_c_id);
-        out.println(filename);
-    }
-
-    // method to enquire file to the remote server and update shared files list on client
-    public void enquire_files()
-    {
-        out.println("ENQUIRY");
-        String rd_in = null;
-        Matcher m_eom = eom.matcher("start");  // initializing the matcher. "start" does not mean anything
-        // get filenames till EOM message is received and update the files list
-        try
-        {
-            while(!m_eom.find())
-            {
-                rd_in = in.readLine();
-                m_eom = eom.matcher(rd_in);
-                if(!m_eom.find())
-                {
-                    String filename = rd_in;
-                    snode.files.add(filename);
-                } 
-                else { break; }  // break out of loop when EOM is received
-            }
-        }
-        catch (IOException e) 
-        {
-        	System.out.println("Read failed");
-        	System.exit(-1);
-        }
     }
 
     // method to send read_file command
     // print the Content on the console
     public void read_file(String filename)
     {
-        out.println("READ");
-        out.println(filename);
-        try
-        {
-            String content = null;
-            content = in.readLine();
-            System.out.println("READ content : "+content);
-        }
-        catch (IOException e) 
-        {
-        	System.out.println("Read failed");
-        	System.exit(-1);
-        }
     }
 
     // method to send write_file command
@@ -284,12 +287,12 @@ class ServerSockHandle
             else if(cmd_in.equals("chain_setup_finish"))
             {
     	        System.out.println("connection setup finished");
-                if ( (my_c_id == 2) | (my_c_id ==3) )
-                {
-                    s_list.get(1).send_setup_finish();
-                }
+                //if ( (my_c_id == 2) | (my_c_id ==3) )
+                //{
+                //    s_list.get(1).send_setup_finish();
+                //}
                 //snode.initiate_enquiry();
-                //snode.create_RAlgorithm();
+                snode.create_mutexAlgorithm();
             }
             // to terminate the program
             else if(cmd_in.equals("simulation_finish"))
@@ -303,17 +306,16 @@ class ServerSockHandle
             {
                 int ts = Integer.valueOf(in.readLine());
                 int pid = Integer.valueOf(in.readLine());
-                String filename = in.readLine();
-    	        System.out.println("REQUEST received from PID "+pid+" with timestamp "+ts+" for file "+filename);
-                process_request_message(ts,pid,filename);
+    	        System.out.println("REQUEST received from PID "+pid+" with timestamp "+ts);
+                process_request_message(ts,pid);
             }
             // got a REPLY message, process it
-            else if(cmd_in.equals("REPLY"))
+            else if(cmd_in.equals("RELEASE"))
             {
+                int ts = Integer.valueOf(in.readLine());
                 int pid = Integer.valueOf(in.readLine());
-                String filename = in.readLine();
-    	        System.out.println("REPLY received from PID "+pid+" for file "+filename);
-                process_reply_message(pid,filename);
+    	        System.out.println("RELEASE received from PID "+pid);
+                process_release_message(ts,pid);
             }
     	}
     	catch (IOException e) 

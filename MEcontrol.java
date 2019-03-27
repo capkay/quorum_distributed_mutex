@@ -5,38 +5,27 @@ public class MEcontrol
 {
     // ME is my_id
     public int ME;
-    //number of nodes
-    public int N = 5;
-    // which file is this instance being used 
-    public String filename;
-    // current sequence number
-    public int our_sn;
-    // highest sequence number
-    public int high_sn;
-    // using the critical section : boolean flag 
-    public boolean using;
-    // issued a request/waiting to use the critical section : boolean flag 
-    public boolean waiting;
-    // authorization flag : boolean array
-    // Carvalho-Roucairol optimization
-    public Boolean[] A = new Boolean[5];
-    // replies deferred flag : boolean array
-    public Boolean[] reply_deferred = new Boolean[5];
+    public int total_msgs_tx;
+    public int total_msgs_rx;
+    public int crit_msgs_tx;
+    public int crit_msgs_rx;
+    public int crit_elapsed_time;
 
-    // constructor takes ID and filename
-    MEcontrol(int ME,String filename)
+    // current sequence number
+    public int timestamp;
+    public int target_reply_count;
+    public int replies_received;
+    // using the critical section : boolean flag 
+    public boolean locked;
+    public PriorityQueue<RequestData> queue = null;
+    // constructor takes ID
+    MEcontrol(int ME)
     {
-        this.our_sn = 0;
-        this.high_sn= 0;
-        this.using = false;
-        this.waiting= false;
+        this.timestamp = 0;
+        this.locked = false;
+        this.target_reply_count = 0;
+        this.replies_received = 0;
+        this.queue = new PriorityQueue<>();
         this.ME = ME;
-        this.filename = filename;
-        // none of the nodes have authorized us to enter critical section initially
-        Arrays.fill(A, Boolean.FALSE);
-        // no replies deferred at the start
-        Arrays.fill(reply_deferred, Boolean.FALSE);
-        // authorized by self
-        A[ME] = true;
     }
 }

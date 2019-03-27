@@ -38,7 +38,9 @@ class SNode
     HashMap<Integer, ServerSockHandle> s_list = new HashMap<Integer, ServerSockHandle>();
     // list of files updated after enquiring a random server
     List<String> files = new ArrayList<String>();
+    mutexAlgorithm mutex = null;
     // handle to client object, ultimately self 
+    CNode cnode = null;
     SNode snode = null;
     // constructor takes clientID passed from command line from main()
     // listenSocket is called as part of starting up
@@ -58,7 +60,7 @@ class SNode
       	// initialize patters for commands
     	Pattern SETUP = Pattern.compile("^SETUP$");
     	Pattern LIST  = Pattern.compile("^LIST$");
-    	Pattern START = Pattern.compile("^START (\\d+)$");
+    	Pattern START = Pattern.compile("^START$");
     	Pattern FINISH= Pattern.compile("^FINISH$");
     	Pattern ENQUIRE= Pattern.compile("^ENQUIRE$");
     	
@@ -80,7 +82,7 @@ class SNode
                 { 
                     if( c_id == 1 )
                     {
-                        setup_connections();
+                        //setup_connections();
                     }
                     else
                     {
@@ -90,15 +92,6 @@ class SNode
                 // do a manual enquiry of files present on server, check if files list is empty, then proceed
                 else if(m_ENQUIRE.find())
                 { 
-                    if(files.size() == 0)
-                    {
-                        initiate_enquiry();
-                    }
-                    else
-                    {
-                        System.out.println("Files list already populated !");
-                        print_enquiry_results();
-                    }
                 }
                 // check the list of socket connections available on this client
                 else if(m_LIST.find())
@@ -123,14 +116,14 @@ class SNode
                 // start the random read/write simulation to access critical section based on Ricart-Agrawala algorithm
                 else if(m_START.find())
                 { 
-    		    System.out.println("**************START Random READ/WRITE simulation");
-                    for(int i=0;i<Integer.valueOf(m_START.group(1));i++)
+    		    System.out.println("**************TRIGGER START Random READ/WRITE simulation");
+                    synchronized (c_list)
                     {
-                        randomDelay(0.005,1.25);
-    		    	System.out.println("**************Iteration : "+i+" of simulation.");
-                        request_crit_section();
+                        c_list.keySet().forEach(key -> {
+                            c_list.get(key).send_start();
+                        });
                     }
-    		    System.out.println("**************FINISH Random READ/WRITE simulation");
+    		    System.out.println("**************TRIGGER FINISH Random READ/WRITE simulation");
     		}
                 // command to close PROGRAM
                 else if(m_FINISH.find())
@@ -166,6 +159,15 @@ class SNode
     		Scanner input = new Scanner(System.in);
     		while(rx_cmd(input) != 0) { }  // to loop forever
     	}
+    }
+    public synchronized void increment_clock()
+    {
+
+    }
+
+    public synchronized void update_clock()
+    {
+
     }
 
     // end program method, calls close on all socket instances and exits program
@@ -205,26 +207,11 @@ class SNode
         System.exit(1);
     }
 
-    // method to send enquiry message to a random server and then print the files
-    public void initiate_enquiry()
+    // method to create multiple instances of Ricart-Agrawala algorithm
+    // save it to a hash corresponding to filenames
+    public void create_mutexAlgorithm()
     {
-        int size = 0;
-        // wait till connection to all 3 servers are established
-        while (size != 3)
-        {
-            synchronized(s_list)
-            {
-                size = s_list.size();
-            }
-        }
-        // choose a random server from 0,1,2 and send enquire message and populate files list
-        int random = (int)(3 * Math.random() + 0);
-        System.out.println("Enquiring server : "+random+" for files");
-        synchronized (s_list)
-        {
-            s_list.get(random).enquire_files();
-        }
-        print_enquiry_results();
+        mutex = new mutexAlgorithm(snode,cnode,c_id);
     }
 
     // method to create delay based on inputs in seconds
@@ -250,55 +237,6 @@ class SNode
 		System.out.println(files.get(i));
 	}
     }
-
-    // method that initiates critical section request
-    public void request_crit_section()
-    {
-        System.out.println("\n=== Initiate REQUEST ===");
-        // choose a random file from the populated list
-        int rf = (int)( (files.size()) * Math.random() + 0);
-        String filename = files.get(rf);
-        System.out.println("=== Chosen file = "+filename);
-        // call request_resource for the specific instance of 
-        // Ricart-Agrawala algorithm that is bounded to this filename
-        //r_list.get(filename).request_resource();
-        System.out.println("Entering critical section of client "+ c_id);
-        // random number for READ/WRITE differentiation
-        int random = (int)(2 * Math.random() + 0);
-        // random number for READ server
-        int rs = (int)(3 * Math.random() + 0);
-        int timestamp = 0;
-        // get the sequence number for the corresponding RA instance
-        //synchronized(r_list.get(filename).cword)
-        //{
-            //timestamp = r_list.get(filename).cword.our_sn;
-            //System.out.println("Critical section timestamp :"+timestamp);
-        //}
-        synchronized (s_list)
-        {
-            // perform READ if random number is 0
-            // sent to a random server
-            if(random == 0)
-            {
-                    System.out.println("READ sent to server :"+rs);
-                    s_list.get(rs).read_file(filename);
-            }
-            else
-            {
-            // perform WRITE to all servers
-                    s_list.keySet().forEach(key -> 
-                    {
-                        System.out.println("WRITE sent to server :"+key);
-                        s_list.get(key).write_file(filename);
-                    });
-            }
-        }
-        //randomDelay(0.5,4.25);
-        System.out.println("Finished critical section of client "+ c_id);
-        // call release_resource for specific instance
-        //r_list.get(filename).release_resource();
-    }
-
 
     // method to setup connections to servers
     public void setup_servers()
@@ -443,6 +381,20 @@ class SNode
                 }
 	        System.out.println("client connection setup target reached");
                 // send chain init message to trigger connection setup
+                // if this is not the last client node (ID =4)
+                // send chain init message to trigger connection setup
+                // phase on the next client
+                if(c_id != 7)
+                {
+                    s_list.get(c_id+1).send_setup();
+                    System.out.println("chain setup init");
+                }
+                // send the setup finish, from Client 4
+                // indicating connection setup phase is complete
+                else
+                {
+                    s_list.get(1).send_setup_finish();
+                }
                 // phase on the next client
             }
         };
@@ -454,7 +406,7 @@ class SNode
     // method encompasses both server and client connection setup
     public void setup_connections()
     {
-        setup_servers();
+        //setup_servers();
         setup_clients();
     }
 

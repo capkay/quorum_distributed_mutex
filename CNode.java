@@ -32,22 +32,27 @@ class CNode
     // variable to store ID of server
     int c_id = -1;
     // variables to get server endpoint information
+    ServerInfo s_info = null;
     ClientInfo c_info = null;
     // hash table that contains socket connections from clients based on client IDs
     HashMap<Integer, ClientSockHandle> s_list = new HashMap<Integer, ClientSockHandle>();
     // list of files updated during start
     List<String> files = new ArrayList<String>();
     // handle to server object, ultimately self 
-    CNode snode = null;
+    mutexAlgorithm mutex = null;
+    SNode snode = null;
+    CNode cnode = null;
     // constructor takes ServerID passed from command line from main()
     // populate_files & listenSocket is called as part of starting up
     CNode(int c_id)
     {
         this.c_info = new ClientInfo();
+        this.s_info = new ServerInfo();
         this.c_id = c_id;
     	this.port = c_info.hmap.get(c_id).port;
         this.listenSocket();
-        this.snode = this;
+        this.cnode = this;
+        this.setup_servers();
     }
 
     // CommandParser class is used to parse and execute respective commands that are entered via command line to SETUP/LIST/START/FINISH simulation
@@ -56,6 +61,7 @@ class CNode
       	// initialize patters for commands
     	Pattern LIST  = Pattern.compile("^LIST$");
     	Pattern FINISH= Pattern.compile("^FINISH$");
+    	Pattern START = Pattern.compile("^START$");
     	
     	// read from inputstream, process and execute tasks accordingly	
     	int rx_cmd(Scanner cmd)
@@ -65,6 +71,7 @@ class CNode
     			cmd_in = cmd.nextLine();
     
     		Matcher m_LIST= LIST.matcher(cmd_in);
+    		Matcher m_START= START.matcher(cmd_in);
     		Matcher m_FINISH= FINISH.matcher(cmd_in);
     		
                 // print the list of files and
@@ -83,7 +90,19 @@ class CNode
                         });
                         System.out.println("=== size ="+s_list.size());
                     }
+                    synchronized(mutex)
+                    {
+                        System.out.println("\n=== mutex ===");
+                        System.out.println("\n=== timestamp ="+mutex.sword.timestamp);
+                        System.out.println("\n=== target_reply_count="+mutex.sword.target_reply_count);
+                        System.out.println("\n=== replies_received="+mutex.sword.replies_received);
+                        System.out.println("\n=== locked ="+mutex.sword.locked);
+                    }
     		}
+                else if(m_START.find())
+                { 
+                    start_simulation();
+                }
                 else if(m_FINISH.find())
                 { 
     		}
@@ -104,6 +123,71 @@ class CNode
     	}
     }
 
+    public void start_simulation()
+    {
+        Thread x = new Thread()
+        {
+            public void run()
+            {
+    	        System.out.println("**************START Random READ/WRITE simulation");
+                for(int i=0;i<10;i++)
+                {
+                    //randomDelay(0.005,0.01);
+                    randomDelay(0.5,1.25);
+                    System.out.println("**************Iteration : "+i+" of simulation.");
+                    request_crit_section();
+                }
+    	        System.out.println("**************FINISH Random READ/WRITE simulation");
+            }
+        };
+
+        x.setDaemon(true); 	// terminate when main ends
+        x.setName("Client_"+c_id+"_simulation");
+        x.start(); 			// start the thread
+    }
+    // method that initiates critical section request
+    public void request_crit_section()
+    {
+        System.out.println("\n=== Initiate REQUEST ===");
+        // choose a random file from the populated list
+        // call request_resource for the specific instance of 
+        int randQ = (int)( (s_info.quorums.size()) * Math.random() + 0);
+        mutex.request_resource(randQ);
+        System.out.println("Entering critical section of client "+ c_id);
+        // write to file
+        //sleep_ms();
+        randomDelay(0.5,1.25);
+        System.out.println("Finished critical section of client "+ c_id);
+        // call release_resource for specific instance
+        mutex.release_resource(randQ);
+    }
+
+    void randomDelay(double min, double max)
+    {
+        int random = (int)(max * Math.random() + min);
+        try 
+        {
+            Thread.sleep(random * 1000);
+        } 
+        catch (InterruptedException e) 
+        {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+    }
+
+    void sleep_ms(int val)
+    {
+        try 
+        {
+            Thread.sleep(val);
+        } 
+        catch (InterruptedException e) 
+        {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+    }
     // end program method, calls close on all socket instances and exits program
     public void end_program()
     {
@@ -228,6 +312,86 @@ class CNode
         }
     }
 
+    // method to setup connections to servers
+    public void setup_servers()
+    {
+        // all 7 servers
+        for(int i=1;i<=7;i++ )
+        {
+            // get the server IP and port info
+            String t_ip = s_info.hmap.get(i).ip;
+            int t_port = Integer.valueOf(s_info.hmap.get(i).port);
+            Thread x = new Thread()
+            {
+                public void run()
+                {
+                    try
+                    {
+                        Socket s = new Socket(t_ip,t_port);
+                        // ServerSockHandle instance with svr_hdl true and rx_hdl false as this is the socket initiator
+                	ClientSockHandle t = new ClientSockHandle(s,ip,port,c_id,s_list,false,cnode);
+                    }
+                    catch (UnknownHostException e) 
+                    {
+                    	System.out.println("Unknown host");
+                    	System.exit(1);
+                    } 
+                    catch (IOException e) 
+                    {
+                    	System.out.println("No I/O");
+                            e.printStackTrace(); 
+                    	System.exit(1);
+                    }
+                }
+            };
+
+            x.setDaemon(true); 	// terminate when main ends
+            x.setName("Client_"+c_id+"_ClientSockHandle_to_Server"+i);
+            x.start(); 			// start the thread
+        }
+        // another thread to check until all connections are established ( ie. socket list size =4 )
+        // then send a message to my_id+1 client to initiate its connection setup phase
+        Thread y = new Thread()
+        {
+            public void run()
+            {
+                int size = 0;
+                int target = 7;
+	        System.out.println("connection setup target:"+target);
+                // wait till client connections are setup
+                while (size != target)
+                {
+                    synchronized(s_list)
+                    {
+                        size = s_list.size();
+                    }
+                }
+	        System.out.println("connection setup target reached");
+                // send chain init message to trigger connection setup
+                // phase on the next client
+                create_mutexAlgorithm();
+                if (c_id == 2)
+                {
+                    s_list.keySet().forEach(key -> {
+                        System.out.println("send setup finish:"+key + " => ID " + s_list.get(key).remote_c_id);
+                        s_list.get(key).send_setup_finish();
+                    });
+                }
+            }
+        };
+            
+        y.setDaemon(true); 	// terminate when main ends
+        y.start(); 			// start the thread
+    }
+
+    // method to create multiple instances of Ricart-Agrawala algorithm
+    // save it to a hash corresponding to filenames
+    public void create_mutexAlgorithm()
+    {
+        mutex = new mutexAlgorithm(snode,cnode,c_id);
+    }
+
+
     // method to start server and listen for incoming connections
     public void listenSocket()
     {
@@ -265,7 +429,7 @@ class CNode
                     {
                         Socket s = server.accept();
                         // ServerSockHandle instance with rx_hdl true as this is the socket listener
-                	    ClientSockHandle t = new ClientSockHandle(s,ip,port,c_id,s_list,true,snode);
+                	    ClientSockHandle t = new ClientSockHandle(s,ip,port,c_id,s_list,true,cnode);
                     }
                     catch (UnknownHostException e) 
 		            {
