@@ -287,19 +287,15 @@ class ServerSockHandle
             else if(cmd_in.equals("chain_setup_finish"))
             {
     	        System.out.println("connection setup finished");
-                //if ( (my_c_id == 2) | (my_c_id ==3) )
-                //{
-                //    s_list.get(1).send_setup_finish();
-                //}
-                //snode.initiate_enquiry();
                 snode.create_mutexAlgorithm();
             }
             // to terminate the program
             else if(cmd_in.equals("simulation_finish"))
             {
-    	        System.out.println("Finish program execution!");
-                snode.end_program();
-                return 0;
+    	        //System.out.println("Finish program execution!");
+                //snode.end_program();
+                //snode.print_stats();
+                //return 0;
             }
             // got a REQUEST message, process it
             else if(cmd_in.equals("REQUEST"))

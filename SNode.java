@@ -36,8 +36,6 @@ class SNode
     HashMap<Integer, ServerSockHandle> c_list = new HashMap<Integer, ServerSockHandle>();
     // hash table that contains socket connections to servers based on ServerIDs
     HashMap<Integer, ServerSockHandle> s_list = new HashMap<Integer, ServerSockHandle>();
-    // list of files updated after enquiring a random server
-    List<String> files = new ArrayList<String>();
     mutexAlgorithm mutex = null;
     // handle to client object, ultimately self 
     CNode cnode = null;
@@ -228,14 +226,6 @@ class SNode
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-    }
-
-    public void print_enquiry_results()
-    {
-	System.out.println("Files available:");
-	for (int i = 0; i < files.size(); i++) {
-		System.out.println(files.get(i));
-	}
     }
 
     // method to setup connections to servers

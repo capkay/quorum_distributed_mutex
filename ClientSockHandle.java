@@ -161,13 +161,14 @@ class ClientSockHandle
     // takes received ID, filename
     public void process_reply_message(int their_sn,int j)
     {
-        System.out.println("process reply message");
+        //System.out.println("process reply message");
         synchronized(cnode.mutex)
         {
             cnode.mutex.sword.timestamp = cnode.mutex.sword.timestamp + 1;
             cnode.mutex.sword.timestamp = Math.max(their_sn+1,cnode.mutex.sword.timestamp);
             ++cnode.mutex.sword.replies_received;
-            System.out.println("replies received "+ cnode.mutex.sword.replies_received);
+            ++cnode.mutex.sword.crit_msgs_rx;
+            //System.out.println("replies received "+ cnode.mutex.sword.replies_received);
         }
     }
     // method to process incoming commands and data associated with them
@@ -207,21 +208,6 @@ class ClientSockHandle
             {
     	        System.out.println("Trigger start from server!");
                 cnode.start_simulation();
-            }
-            // send file metadata one by one to the requesting client
-            else if(cmd_in.equals("ENQUIRY"))
-            {
-    	        System.out.println("Received ENQUIRY from client :"+ remote_c_id);
-                synchronized(cnode.files)
-                {
-    	            for (int i = 0; i < cnode.files.size(); i++) 
-                    {
-    	        	out.println(cnode.files.get(i));
-    	                System.out.println("file :"+ cnode.files.get(i));
-    	            }
-                }
-                // EOM helps in terminating loop at the receiver site
-                out.println("EOM");
             }
             // perform the read operation for the requested file
             else if(cmd_in.equals("READ"))

@@ -36,12 +36,11 @@ class CNode
     ClientInfo c_info = null;
     // hash table that contains socket connections from clients based on client IDs
     HashMap<Integer, ClientSockHandle> s_list = new HashMap<Integer, ClientSockHandle>();
-    // list of files updated during start
-    List<String> files = new ArrayList<String>();
     // handle to server object, ultimately self 
     mutexAlgorithm mutex = null;
     SNode snode = null;
     CNode cnode = null;
+    String FILE = "mutex.txt";
     // constructor takes ServerID passed from command line from main()
     // populate_files & listenSocket is called as part of starting up
     CNode(int c_id)
@@ -53,6 +52,7 @@ class CNode
         this.listenSocket();
         this.cnode = this;
         this.setup_servers();
+        this.clearTheFile(this.FILE);
     }
 
     // CommandParser class is used to parse and execute respective commands that are entered via command line to SETUP/LIST/START/FINISH simulation
@@ -78,10 +78,6 @@ class CNode
                 // check the list of socket connections available on this server
                 if(m_LIST.find())
                 { 
-		    System.out.println("Files:");
-		    for (int i = 0; i < files.size(); i++) {
-		    	System.out.println(files.get(i));
-		    }
                     synchronized (s_list)
                     {
                         System.out.println("\n=== Connections to servers ===");
@@ -93,10 +89,10 @@ class CNode
                     synchronized(mutex)
                     {
                         System.out.println("\n=== mutex ===");
-                        System.out.println("\n=== timestamp ="+mutex.sword.timestamp);
-                        System.out.println("\n=== target_reply_count="+mutex.sword.target_reply_count);
-                        System.out.println("\n=== replies_received="+mutex.sword.replies_received);
-                        System.out.println("\n=== locked ="+mutex.sword.locked);
+                        System.out.println("timestamp ="+mutex.sword.timestamp);
+                        System.out.println("target_reply_count="+mutex.sword.target_reply_count);
+                        System.out.println("replies_received="+mutex.sword.replies_received);
+                        System.out.println("locked ="+mutex.sword.locked);
                     }
     		}
                 else if(m_START.find())
@@ -123,6 +119,30 @@ class CNode
     	}
     }
 
+    // method to clear the contents of the file when starting up
+    // adapted from StackOverflow
+    public void clearTheFile(String filename) {
+        try
+        {
+            FileWriter fwOb = new FileWriter("./"+filename, false); 
+            PrintWriter pwOb = new PrintWriter(fwOb, false);
+            pwOb.write("");
+            pwOb.flush();
+            pwOb.close();
+            fwOb.close();
+        }
+        catch (FileNotFoundException e) 
+        {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        catch (IOException e) 
+        {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+    }
+
     public void start_simulation()
     {
         Thread x = new Thread()
@@ -132,12 +152,15 @@ class CNode
     	        System.out.println("**************START Random READ/WRITE simulation");
                 for(int i=0;i<10;i++)
                 {
-                    //randomDelay(0.005,0.01);
-                    randomDelay(0.5,1.25);
+                    randomDelay(0.005,0.01);
+                    //randomDelay(0.5,1.25);
                     System.out.println("**************Iteration : "+i+" of simulation.");
                     request_crit_section();
+                    print_crit_stats();
                 }
     	        System.out.println("**************FINISH Random READ/WRITE simulation");
+                s_list.get(1).send_finish();
+                print_sim_stats();
             }
         };
 
@@ -155,11 +178,34 @@ class CNode
         mutex.request_resource(randQ);
         System.out.println("Entering critical section of client "+ c_id);
         // write to file
-        //sleep_ms();
-        randomDelay(0.5,1.25);
+        sleep_ms(3);
+        //randomDelay(0.5,1.25);
         System.out.println("Finished critical section of client "+ c_id);
         // call release_resource for specific instance
         mutex.release_resource(randQ);
+    }
+
+    public void print_sim_stats()
+    {
+        System.out.println("\n=== STATS for entire simulation ===");
+        synchronized(mutex)
+        {
+            System.out.println("Number of messages sent = "+ mutex.sword.total_msgs_tx);
+            System.out.println("Number of messages received = "+ mutex.sword.total_msgs_rx);
+        }
+        System.out.println("=======================================");
+    }
+
+    public void print_crit_stats()
+    {
+        System.out.println("\n=== STATS for this critical section ===");
+        synchronized(mutex)
+        {
+            int total_msgs = mutex.sword.crit_msgs_rx + mutex.sword.crit_msgs_tx;
+            System.out.println("Number of messages exchanged = "+ total_msgs);
+            System.out.println("Elapsed time (latency in ms) = "+ mutex.sword.crit_elapsed_time);
+        }
+        System.out.println("=======================================");
     }
 
     void randomDelay(double min, double max)

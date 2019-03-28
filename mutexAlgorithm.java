@@ -48,13 +48,16 @@ public class mutexAlgorithm
         int ts = 0;
         synchronized(sword)
         {
-        sword.timestamp = sword.timestamp + 1;
-        System.out.println("Request resource timestamp :"+sword.timestamp);
+            sword.timestamp = sword.timestamp + 1;
+            System.out.println("Request resource timestamp :"+sword.timestamp);
+            sword.start_time = System.currentTimeMillis();
 
-        sword.target_reply_count = s_info.quorums.get(randQ).size();
-        sword.replies_received = 0;
-        target = sword.target_reply_count;
-        ts = sword.timestamp;
+            sword.target_reply_count = s_info.quorums.get(randQ).size();
+            sword.replies_received = 0;
+            target = sword.target_reply_count;
+            ts = sword.timestamp;
+            sword.crit_msgs_tx = 0;
+            sword.crit_msgs_rx = 0;
         }
         // send requests to all nodes in quorum
 
@@ -63,6 +66,10 @@ public class mutexAlgorithm
             int rx = s_info.quorums.get(randQ).get(j);
             System.out.println("REQUEST to "+ rx);
             cnode.s_list.get(rx).crit_request(ts);
+            synchronized(sword)
+            {
+                ++sword.crit_msgs_tx;
+            }
         }
 
         System.out.println("Wait for Replies");
@@ -91,7 +98,7 @@ public class mutexAlgorithm
     {
         synchronized(sword)
         {
-        sword.timestamp = sword.timestamp + 1;
+            sword.timestamp = sword.timestamp + 1;
         }
         System.out.println("release resource timestamp :"+sword.timestamp);
         for(int j=0;j<s_info.quorums.get(randQ).size();j++)
@@ -101,6 +108,23 @@ public class mutexAlgorithm
             // authorization set to false for the node to which deferred reply is just sent
             // send the reply
             cnode.s_list.get(rx).crit_release(sword.timestamp);
+            synchronized(sword)
+            {
+                ++sword.crit_msgs_tx;
+            }
+        }
+
+        update_stats();
+    }
+
+    public void update_stats()
+    {
+        synchronized(sword)
+        {
+            sword.end_time = System.currentTimeMillis();
+            sword.crit_elapsed_time = sword.end_time - sword.start_time;
+            sword.total_msgs_tx += sword.crit_msgs_tx;
+            sword.total_msgs_rx += sword.crit_msgs_rx;
         }
     }
 }

@@ -9,7 +9,9 @@ public class MEcontrol
     public int total_msgs_rx;
     public int crit_msgs_tx;
     public int crit_msgs_rx;
-    public int crit_elapsed_time;
+    public long crit_elapsed_time;
+    public long start_time;
+    public long end_time;
 
     // current sequence number
     public int timestamp;
