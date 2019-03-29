@@ -143,24 +143,82 @@ class CNode
         }
     }
 
+    public void reset_simulation()
+    {
+        if(c_id == 1)
+        {
+            for(int j=2;j<8;j++)
+            {
+                System.out.println("RESET sent to "+ j);
+                // authorization set to false for the node to which deferred reply is just sent
+                // send the reply
+                cnode.s_list.get(j).send_reset();
+            }
+            int t = 0;
+            System.out.println("wait for reset complete in servers");
+            while ( t!=6)
+            {
+            synchronized(mutex)
+            {
+                t = mutex.sword.reset_count;
+            }
+            }
+            System.out.println("finished wait for reset complete in servers");
+            cnode.s_list.get(1).send_reset_done();
+        }
+    }
+
+    public void restart_simulation()
+    {
+    	System.out.println("**************Starting to RESTART");
+        synchronized(mutex)
+        {
+            mutex.sword.restart = true;
+        }
+        boolean r = true;
+        //wait till all replies received
+        while (r)
+        {
+            synchronized(mutex)
+            {
+                r = mutex.sword.restart;
+            }
+        }
+    	System.out.println("**************ENTERING START AGAIN");
+        start_simulation();
+    }
+
     public void start_simulation()
     {
         Thread x = new Thread()
         {
             public void run()
             {
+                boolean breaker = false;
     	        System.out.println("**************START Random READ/WRITE simulation");
-                for(int i=0;i<10;i++)
+                for(int i=0;i<20;i++)
                 {
-                    randomDelay(0.005,0.01);
+                    randomDelay(0.005,5);
                     //randomDelay(0.5,1.25);
                     System.out.println("**************Iteration : "+i+" of simulation.");
                     request_crit_section();
+
+                    synchronized(mutex)
+                    {
+                        if(mutex.sword.restart)
+                        {
+                            System.out.println("**************RESTARTING SIMULATION");
+                            mutex.reset_control();
+                            breaker = true;
+                            break;
+                        }
+                    }
                     print_crit_stats();
                 }
     	        System.out.println("**************FINISH Random READ/WRITE simulation");
+                if (!breaker){
                 s_list.get(1).send_finish();
-                print_sim_stats();
+                print_sim_stats();}
             }
         };
 
@@ -168,6 +226,7 @@ class CNode
         x.setName("Client_"+c_id+"_simulation");
         x.start(); 			// start the thread
     }
+
     // method that initiates critical section request
     public void request_crit_section()
     {
@@ -176,9 +235,18 @@ class CNode
         // call request_resource for the specific instance of 
         int randQ = (int)( (s_info.quorums.size()) * Math.random() + 0);
         mutex.request_resource(randQ);
+        synchronized(mutex)
+        {
+            if(mutex.sword.restart)
+            {
+                System.out.println("**************RESTARTING SIMULATION --> break out from request crit section");
+                return;
+            }
+        }
         System.out.println("Entering critical section of client "+ c_id);
         // write to file
-        sleep_ms(3);
+        do_write_operation(this.FILE);
+        //sleep_ms(3);
         //randomDelay(0.5,1.25);
         System.out.println("Finished critical section of client "+ c_id);
         // call release_resource for specific instance
@@ -330,20 +398,26 @@ class CNode
     }
 
     // write to file
-    public void do_write_operation(String filename,String content)
+    public void do_write_operation(String filename)
     {
         // directory is based on serverID
-        File file = new File("./"+c_id+"/"+filename);
+        File file = new File("./"+filename);
 	if (!file.exists()) 
         {
 	    System.out.println("File "+filename+" does not exist");
             return;
 	}
+        int timestamp = 0;
+        synchronized(mutex)
+        {
+            timestamp = mutex.sword.timestamp;
+        }
+        //randomDelay(0.001,0.003);
         try
         {
             // write / append to the file
             FileWriter fw = new FileWriter(file, true);
-            fw.write("\n"+content);
+            fw.write("\nClient "+c_id+" entering; logical clk="+timestamp+" physical time ="+System.currentTimeMillis());
             fw.close();
         }
         catch (FileNotFoundException e) 
@@ -416,7 +490,7 @@ class CNode
                 // send chain init message to trigger connection setup
                 // phase on the next client
                 create_mutexAlgorithm();
-                if (c_id == 2)
+                if (c_id == 5)
                 {
                     s_list.keySet().forEach(key -> {
                         System.out.println("send setup finish:"+key + " => ID " + s_list.get(key).remote_c_id);

@@ -59,6 +59,7 @@ class SNode
     	Pattern SETUP = Pattern.compile("^SETUP$");
     	Pattern LIST  = Pattern.compile("^LIST$");
     	Pattern START = Pattern.compile("^START$");
+    	Pattern RESTART = Pattern.compile("^RESTART$");
     	Pattern FINISH= Pattern.compile("^FINISH$");
     	Pattern ENQUIRE= Pattern.compile("^ENQUIRE$");
     	
@@ -70,6 +71,7 @@ class SNode
     			cmd_in = cmd.nextLine();
     
     		Matcher m_START= START.matcher(cmd_in);
+    		Matcher m_RESTART = RESTART.matcher(cmd_in);
     		Matcher m_LIST= LIST.matcher(cmd_in);
     		Matcher m_SETUP= SETUP.matcher(cmd_in);
     		Matcher m_FINISH= FINISH.matcher(cmd_in);
@@ -123,6 +125,16 @@ class SNode
                     }
     		    System.out.println("**************TRIGGER FINISH Random READ/WRITE simulation");
     		}
+                else if(m_RESTART.find())
+                { 
+    		    System.out.println("**************TRIGGER RESTART Random READ/WRITE simulation");
+                    mutex.reset_control();
+                    synchronized (c_list)
+                    {
+                            c_list.get(1).send_reset();
+                    }
+    		    System.out.println("**************TRIGGER RESTART FINISH Random READ/WRITE simulation");
+    		}
                 // command to close PROGRAM
                 else if(m_FINISH.find())
                 { 
@@ -158,14 +170,25 @@ class SNode
     		while(rx_cmd(input) != 0) { }  // to loop forever
     	}
     }
-    public synchronized void increment_clock()
+
+    public void restart_simulation()
     {
+        synchronized(mutex)
+        {
+            mutex.reset_control();
+        }
 
     }
 
-    public synchronized void update_clock()
+    public void send_restart_message()
     {
-
+    		    System.out.println("restart from server");
+                    synchronized (c_list)
+                    {
+                        c_list.keySet().forEach(key -> {
+                            c_list.get(key).send_restart();
+                        });
+                    }
     }
 
     // end program method, calls close on all socket instances and exits program

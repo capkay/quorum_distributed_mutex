@@ -115,6 +115,13 @@ class ClientSockHandle
     	read.setDaemon(true); 	// terminate when main ends
         read.start();		// start the thread	
     }
+
+    // methods to send setup related messages in the output stream
+    public void send_restart()
+    {
+	System.out.println("send_restart to:"+remote_c_id);
+        out.println("restart_simulation");
+    }
     
     // method to send the REQUEST message with timestamp and file identifier
     public synchronized void crit_request(int ts)
@@ -139,6 +146,11 @@ class ClientSockHandle
         out.println(ts);
         out.println(my_c_id);
     }
+    public void send_reset()
+    {
+	System.out.println("send_reset to:"+remote_c_id);
+        out.println("reset_simulation");
+    }
 
     // methods to send setup related messages in the output stream
     public void send_setup()
@@ -156,6 +168,19 @@ class ClientSockHandle
     {
 	System.out.println("setup_finish to:"+remote_c_id);
         out.println("chain_setup_finish");
+    }
+    public void send_reset_done()
+    {
+	System.out.println("send_reset_done to:"+remote_c_id);
+        out.println("reset_done");
+    }
+    public void process_reset_message()
+    {
+        //System.out.println("process reply message");
+        synchronized(cnode.mutex)
+        {
+            ++cnode.mutex.sword.reset_count;
+        }
     }
     // method to process received reply message ( part of Ricard-Agrawala algorithm )
     // takes received ID, filename
@@ -206,23 +231,23 @@ class ClientSockHandle
             }
             else if(cmd_in.equals("start_simulation"))
             {
-    	        System.out.println("Trigger start from server!");
+    	        System.out.println("start_simulation from server!");
                 cnode.start_simulation();
             }
-            // perform the read operation for the requested file
-            else if(cmd_in.equals("READ"))
+            else if(cmd_in.equals("restart_simulation"))
             {
-                String filename = in.readLine();
-                String content = cnode.do_read_operation(filename);
-                out.println(content);
+    	        System.out.println("restart simulation from server!");
+                cnode.restart_simulation();
             }
-            // perform the write operation for the requested file
-            else if(cmd_in.equals("WRITE"))
+            else if(cmd_in.equals("reset_done"))
             {
-                String filename = in.readLine();
-                String content = in.readLine();
-                cnode.do_write_operation(filename,content);
-                out.println("EOM");
+    	        System.out.println("reset done from server!");
+                process_reset_message();
+            }
+            else if(cmd_in.equals("reset_simulation"))
+            {
+    	        System.out.println("reset simulation from server!");
+                cnode.reset_simulation();
             }
             // got a REPLY message, process it
             else if(cmd_in.equals("GRANT"))

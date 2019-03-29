@@ -174,6 +174,17 @@ class ServerSockHandle
         }
     }
     // methods to send setup related messages in the output stream
+    public void send_restart()
+    {
+	System.out.println("send_restart to:"+remote_c_id);
+        out.println("restart_simulation");
+    }
+    public void send_reset()
+    {
+	System.out.println("send_reset to:"+remote_c_id);
+        out.println("reset_simulation");
+    }
+    // methods to send setup related messages in the output stream
     public void send_start()
     {
 	System.out.println("send_start to:"+remote_c_id);
@@ -212,17 +223,6 @@ class ServerSockHandle
         out.println("GRANT");
         out.println(ts);
         out.println(my_c_id);
-    }
-
-    // method to send read_file command
-    // print the Content on the console
-    public void read_file(String filename)
-    {
-    }
-
-    // method to send write_file command
-    public void write_file(String filename)
-    {
     }
 
     // method to process incoming commands and data associated with them
@@ -296,6 +296,17 @@ class ServerSockHandle
                 //snode.end_program();
                 //snode.print_stats();
                 //return 0;
+            }
+            else if(cmd_in.equals("reset_simulation"))
+            {
+    	        System.out.println("reset from "+remote_c_id);
+                snode.restart_simulation();
+                out.println("reset_done");
+            }
+            else if(cmd_in.equals("reset_done"))
+            {
+    	        System.out.println("reset_done from "+remote_c_id);
+                snode.send_restart_message();
             }
             // got a REQUEST message, process it
             else if(cmd_in.equals("REQUEST"))
