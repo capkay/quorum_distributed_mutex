@@ -48,6 +48,8 @@ public class mutexAlgorithm
         int ts = 0;
         synchronized(sword)
         {
+            sword.quorum_index = randQ;
+            sword.waiting = true;
             sword.timestamp = sword.timestamp + 1;
             System.out.println("Request resource timestamp :"+sword.timestamp);
             sword.start_time = System.currentTimeMillis();
@@ -72,11 +74,11 @@ public class mutexAlgorithm
             }
         }
 
-        System.out.println("Wait for Replies");
+        //System.out.println("Wait for Replies");
         // wait till all replies are received
-        waitfor_replies(target);
+        //waitfor_replies(target);
 
-        System.out.println("Finish Wait for Replies");
+        //System.out.println("Finish Wait for Replies");
     }
 
     void randomDelay(double min, double max)
@@ -84,7 +86,8 @@ public class mutexAlgorithm
         int random = (int)(max * Math.random() + min);
         try 
         {
-            Thread.sleep(random * 1000);
+            System.out.println("sleep for "+ random);
+            Thread.sleep(random);
         } 
         catch (InterruptedException e) 
         {
@@ -110,10 +113,12 @@ public class mutexAlgorithm
     }
 
     // synchronized method to release resource/ critical section
-    public void release_resource(int randQ)
+    public void release_resource()
     {
+        int randQ;
         synchronized(sword)
         {
+            randQ = sword.quorum_index;
             sword.timestamp = sword.timestamp + 1;
         }
         System.out.println("release resource timestamp :"+sword.timestamp);
@@ -141,6 +146,11 @@ public class mutexAlgorithm
             sword.crit_elapsed_time = sword.end_time - sword.start_time;
             sword.total_msgs_tx += sword.crit_msgs_tx;
             sword.total_msgs_rx += sword.crit_msgs_rx;
+            sword.waiting = false;
+        }
+        synchronized(this)
+        {
+            this.notifyAll();
         }
     }
 
@@ -149,6 +159,7 @@ public class mutexAlgorithm
         sword.timestamp = 0;
         sword.locked = false;
         sword.restart = false;
+        sword.waiting = false;
         sword.target_reply_count = 0;
         sword.replies_received = 0;
         sword.reset_count = 0;
@@ -159,6 +170,7 @@ public class mutexAlgorithm
         sword.crit_elapsed_time = 0;
         sword.start_time = 0;
         sword.end_time = 0;
+        sword.quorum_index = 0;
         while(!sword.queue.isEmpty())
         {
             sword.queue.remove();

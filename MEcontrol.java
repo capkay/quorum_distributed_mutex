@@ -13,6 +13,7 @@ public class MEcontrol
     public long start_time;
     public long end_time;
     public int reset_count;
+    public int quorum_index;
 
     // current sequence number
     public int timestamp;
@@ -20,6 +21,7 @@ public class MEcontrol
     public int replies_received;
     // using the critical section : boolean flag 
     public boolean locked;
+    public boolean waiting;
     public boolean restart;
     public PriorityQueue<RequestData> queue = null;
     // constructor takes ID
@@ -29,6 +31,7 @@ public class MEcontrol
         this.reset_count = 0;
         this.locked = false;
         this.restart= false;
+        this.waiting= false;
         this.target_reply_count = 0;
         this.replies_received = 0;
         this.queue = new PriorityQueue<>();
@@ -41,5 +44,6 @@ public class MEcontrol
         this.start_time = 0;
         this.end_time = 0;
         this.reset_count = 0;
+        this.quorum_index=0;
     }
 }

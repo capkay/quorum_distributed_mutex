@@ -187,13 +187,21 @@ class ClientSockHandle
     public void process_reply_message(int their_sn,int j)
     {
         //System.out.println("process reply message");
+        int msgs = 0;
+        int target= 0;
         synchronized(cnode.mutex)
         {
             cnode.mutex.sword.timestamp = cnode.mutex.sword.timestamp + 1;
             cnode.mutex.sword.timestamp = Math.max(their_sn+1,cnode.mutex.sword.timestamp);
             ++cnode.mutex.sword.replies_received;
             ++cnode.mutex.sword.crit_msgs_rx;
+            msgs = cnode.mutex.sword.replies_received;
+            target = cnode.mutex.sword.target_reply_count;
             //System.out.println("replies received "+ cnode.mutex.sword.replies_received);
+        }
+        if(target == msgs)
+        {
+            cnode.enter_crit_release();
         }
     }
     // method to process incoming commands and data associated with them

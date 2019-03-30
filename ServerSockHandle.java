@@ -292,7 +292,7 @@ class ServerSockHandle
             // to terminate the program
             else if(cmd_in.equals("simulation_finish"))
             {
-    	        //System.out.println("Finish program execution!");
+    	        System.out.println("Finish program execution!");
                 //snode.end_program();
                 //snode.print_stats();
                 //return 0;

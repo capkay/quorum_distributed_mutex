@@ -40,11 +40,11 @@ class CNode
     mutexAlgorithm mutex = null;
     SNode snode = null;
     CNode cnode = null;
-    String FILE = "mutex.txt";
-    double crit_a = 0.005;
-    double crit_b = 0.01;
-    double rel_a  = 0.001;
-    double rel_b  = 0.004;
+    String FILE = "mutex.log";
+    String LOGFILE = null;
+    double crit_a = 5;
+    double crit_b = 10;
+    int rel_delay  = 3;
     // constructor takes ServerID passed from command line from main()
     // populate_files & listenSocket is called as part of starting up
     CNode(int c_id)
@@ -56,11 +56,12 @@ class CNode
         this.listenSocket();
         this.cnode = this;
         this.setup_servers();
-        this.crit_a = 0.005;
-        this.crit_b = 0.01;
-        this.rel_a  = 0.001;
-        this.rel_b  = 0.004;
+        this.crit_a = 5;
+        this.crit_b = 10;
+        this.rel_delay  = 3;
+        this.LOGFILE = "C"+c_id + ".log";
         this.clearTheFile(this.FILE);
+        this.clearTheFile(this.LOGFILE);
     }
 
     // CommandParser class is used to parse and execute respective commands that are entered via command line to SETUP/LIST/START/FINISH simulation
@@ -71,7 +72,7 @@ class CNode
     	Pattern FINISH= Pattern.compile("^FINISH$");
     	Pattern START = Pattern.compile("^START$");
     	Pattern CRIT = Pattern.compile("^CRIT (\\d+) (\\d+)$");
-    	Pattern REL  = Pattern.compile("^REL (\\d+) (\\d+)$");
+    	Pattern REL  = Pattern.compile("^REL (\\d+)$");
     	
     	// read from inputstream, process and execute tasks accordingly	
     	int rx_cmd(Scanner cmd)
@@ -121,8 +122,7 @@ class CNode
     		}
                 else if(m_REL.find())
                 { 
-                    rel_a = Double.parseDouble(m_REL.group(1));
-                    rel_b = Double.parseDouble(m_REL.group(2));
+                    rel_delay = Integer.valueOf(m_REL.group(1));
     		}
     		// default message
     		else 
@@ -169,6 +169,7 @@ class CNode
     {
         if(c_id == 1)
         {
+            clearTheFile(this.FILE);
             for(int j=2;j<8;j++)
             {
                 System.out.println("RESET sent to "+ j);
@@ -192,18 +193,31 @@ class CNode
 
     public void restart_simulation()
     {
+
     	System.out.println("**************Starting to RESTART");
+        boolean waiting = false;
         synchronized(mutex)
         {
             mutex.sword.restart = true;
+            mutex.notifyAll();
+            waiting = mutex.sword.waiting;
         }
-        boolean r = true;
-        //wait till all replies received
-        while (r)
+        if(waiting)
+        {
+            boolean r = true;
+            while (r)
+            {
+                synchronized(mutex)
+                {
+                    r = mutex.sword.restart;
+                }
+            }
+        }
+        else
         {
             synchronized(mutex)
             {
-                r = mutex.sword.restart;
+                mutex.reset_control();
             }
         }
     	System.out.println("**************ENTERING START AGAIN");
@@ -212,6 +226,7 @@ class CNode
 
     public void start_simulation()
     {
+        clearTheFile(this.LOGFILE);
         Thread x = new Thread()
         {
             public void run()
@@ -220,14 +235,24 @@ class CNode
     	        System.out.println("**************START Random READ/WRITE simulation");
                 for(int i=0;i<20;i++)
                 {
-                    //randomDelay(0.005,5);
                     randomDelay(crit_a,crit_b);
-                    //randomDelay(0.5,1.25);
                     System.out.println("**************Iteration : "+i+" of simulation.");
                     request_crit_section();
 
                     synchronized(mutex)
                     {
+                        if(mutex.sword.waiting)
+                        {
+                            try
+                            {
+                                mutex.wait();
+                            }
+                            catch (InterruptedException e)  
+                            {
+                                System.out.println("interrupt");
+                                Thread.currentThread().interrupt(); 
+                            }
+                        }
                         if(mutex.sword.restart)
                         {
                             System.out.println("**************RESTARTING SIMULATION");
@@ -236,7 +261,7 @@ class CNode
                             break;
                         }
                     }
-                    print_crit_stats();
+                    print_crit_stats(i);
                 }
     	        System.out.println("**************FINISH Random READ/WRITE simulation");
                 if (!breaker){
@@ -266,46 +291,61 @@ class CNode
                 return;
             }
         }
+    }
+
+    public void enter_crit_release()
+    {
         System.out.println("Entering critical section of client "+ c_id);
         // write to file
         do_write_operation(this.FILE);
-        //sleep_ms(3);
-        //randomDelay(0.5,1.25);
-        randomDelay(this.rel_a,this.rel_b);
         System.out.println("Finished critical section of client "+ c_id);
         // call release_resource for specific instance
-        mutex.release_resource(randQ);
+        mutex.release_resource();
     }
 
     public void print_sim_stats()
     {
-        System.out.println("\n=== STATS for entire simulation ===");
+        String buf = "";
+        buf += "\n=== STATS for entire simulation ===";
+        //System.out.println("\n=== STATS for entire simulation ===");
         synchronized(mutex)
         {
-            System.out.println("Number of messages sent = "+ mutex.sword.total_msgs_tx);
-            System.out.println("Number of messages received = "+ mutex.sword.total_msgs_rx);
+            buf += "\nNumber of messages sent = "+ mutex.sword.total_msgs_tx;
+            buf += "\nNumber of messages received = "+ mutex.sword.total_msgs_rx;
+            //System.out.println("Number of messages sent = "+ mutex.sword.total_msgs_tx);
+            //System.out.println("Number of messages received = "+ mutex.sword.total_msgs_rx);
         }
-        System.out.println("=======================================");
+        buf += "\n=======================================";
+        System.out.print(buf);
+        writeToFile(this.LOGFILE,buf);
+        //System.out.println("=======================================");
     }
 
-    public void print_crit_stats()
+    public void print_crit_stats(int i)
     {
-        System.out.println("\n=== STATS for this critical section ===");
+        String buf = "";
+        buf += "\n=== STATS for this critical section iteration : "+i;
         synchronized(mutex)
         {
             int total_msgs = mutex.sword.crit_msgs_rx + mutex.sword.crit_msgs_tx;
-            System.out.println("Number of messages exchanged = "+ total_msgs);
-            System.out.println("Elapsed time (latency in ms) = "+ mutex.sword.crit_elapsed_time);
+            buf +="\nNumber of messages exchanged = "+ total_msgs;
+            buf +="\nElapsed time (latency in ms) = "+ mutex.sword.crit_elapsed_time;
+            //System.out.println("Number of messages exchanged = "+ total_msgs);
+            //System.out.println("Elapsed time (latency in ms) = "+ mutex.sword.crit_elapsed_time);
         }
-        System.out.println("=======================================");
+        buf += "\n=======================================";
+        //System.out.println("=======================================");
+        System.out.print(buf);
+        writeToFile(this.LOGFILE,buf);
     }
 
     void randomDelay(double min, double max)
     {
-        int random = (int)(max * Math.random() + min);
+        int random = ( (int)(max * Math.random() + min) )* c_id;
         try 
         {
-            Thread.sleep(random * 1000);
+            System.out.println("sleep for "+random);
+            Thread.sleep(random);
         } 
         catch (InterruptedException e) 
         {
@@ -318,6 +358,7 @@ class CNode
     {
         try 
         {
+            System.out.println("sleep for "+val);
             Thread.sleep(val);
         } 
         catch (InterruptedException e) 
@@ -348,51 +389,22 @@ class CNode
         System.exit(1);
     }
 
-    // read last line and return it, for the requested file
-    public String do_read_operation(String filename)
+    public void writeToFile(String filename, String content)
     {
         // directory is based on serverID
-        File file = new File("./"+c_id+"/"+filename);
+        File file = new File("./"+filename);
 	if (!file.exists()) 
         {
 	    System.out.println("File "+filename+" does not exist");
-            return "NULL";
+            return;
 	}
-        // return line
-        return readFromLast(file,filename);
-    }
-
-    // method to read last line from a file
-    // adapted from StackOverflow
-    public String readFromLast(File file, String filename)
-    {
-        int lines = 0;
-        StringBuilder builder = new StringBuilder();
-        RandomAccessFile randomAccessFile = null;
-        try 
+        try
         {
-            randomAccessFile = new RandomAccessFile(file, "r");
-            long fileLength = file.length() - 1;
-            // Set the pointer at the last of the file
-            randomAccessFile.seek(fileLength);
-            for(long pointer = fileLength; pointer >= 0; pointer--)
-            {
-                randomAccessFile.seek(pointer);
-                char c;
-                // read from the last one char at the time
-                c = (char)randomAccessFile.read(); 
-                // break when end of the line
-                if(c == '\n')
-                {
-                    break;
-                }
-                builder.append(c);
-            }
-            // Since line is read from the last so it 
-            // is in reverse so use reverse method to make it right
-            builder.reverse();
-            System.out.println("Line - " + builder.toString()+" - File : "+filename);
-        } 
+            // write / append to the file
+            FileWriter fw = new FileWriter(file, true);
+            fw.write(content+"\n");
+            fw.close();
+        }
         catch (FileNotFoundException e) 
         {
             // TODO Auto-generated catch block
@@ -403,24 +415,7 @@ class CNode
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-        finally
-        {
-            if(randomAccessFile != null)
-            {
-                try 
-                {
-                    randomAccessFile.close();
-                } 
-                catch (IOException e) 
-                {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                }
-            }
-        }
-        return builder.toString();
     }
-
     // write to file
     public void do_write_operation(String filename)
     {
@@ -440,7 +435,8 @@ class CNode
         {
             // write / append to the file
             FileWriter fw = new FileWriter(file, true);
-            fw.write("\nClient "+c_id+" entering; logical clk="+timestamp+" physical time ="+System.currentTimeMillis());
+            fw.write("Client "+c_id+" entering; logical clk="+timestamp+" physical time ="+System.currentTimeMillis()+"\n");
+            sleep_ms(this.rel_delay);
             fw.close();
         }
         catch (FileNotFoundException e) 

@@ -261,7 +261,8 @@ class SNode
         int random = (int)(max * Math.random() + min);
         try 
         {
-            Thread.sleep(random * 1000);
+            System.out.println("sleep for "+ random);
+            Thread.sleep(random);
         } 
         catch (InterruptedException e) 
         {
