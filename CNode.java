@@ -41,6 +41,10 @@ class CNode
     SNode snode = null;
     CNode cnode = null;
     String FILE = "mutex.txt";
+    double crit_a = 0.005;
+    double crit_b = 0.01;
+    double rel_a  = 0.001;
+    double rel_b  = 0.004;
     // constructor takes ServerID passed from command line from main()
     // populate_files & listenSocket is called as part of starting up
     CNode(int c_id)
@@ -52,6 +56,10 @@ class CNode
         this.listenSocket();
         this.cnode = this;
         this.setup_servers();
+        this.crit_a = 0.005;
+        this.crit_b = 0.01;
+        this.rel_a  = 0.001;
+        this.rel_b  = 0.004;
         this.clearTheFile(this.FILE);
     }
 
@@ -62,6 +70,8 @@ class CNode
     	Pattern LIST  = Pattern.compile("^LIST$");
     	Pattern FINISH= Pattern.compile("^FINISH$");
     	Pattern START = Pattern.compile("^START$");
+    	Pattern CRIT = Pattern.compile("^CRIT (\\d+) (\\d+)$");
+    	Pattern REL  = Pattern.compile("^REL (\\d+) (\\d+)$");
     	
     	// read from inputstream, process and execute tasks accordingly	
     	int rx_cmd(Scanner cmd)
@@ -73,6 +83,8 @@ class CNode
     		Matcher m_LIST= LIST.matcher(cmd_in);
     		Matcher m_START= START.matcher(cmd_in);
     		Matcher m_FINISH= FINISH.matcher(cmd_in);
+    		Matcher m_CRIT = CRIT.matcher(cmd_in);
+    		Matcher m_REL  = REL.matcher(cmd_in);
     		
                 // print the list of files and
                 // check the list of socket connections available on this server
@@ -101,6 +113,16 @@ class CNode
                 }
                 else if(m_FINISH.find())
                 { 
+    		}
+                else if(m_CRIT.find())
+                { 
+                    crit_a = Double.parseDouble(m_CRIT.group(1));
+                    crit_b = Double.parseDouble(m_CRIT.group(2));
+    		}
+                else if(m_REL.find())
+                { 
+                    rel_a = Double.parseDouble(m_REL.group(1));
+                    rel_b = Double.parseDouble(m_REL.group(2));
     		}
     		// default message
     		else 
@@ -198,7 +220,8 @@ class CNode
     	        System.out.println("**************START Random READ/WRITE simulation");
                 for(int i=0;i<20;i++)
                 {
-                    randomDelay(0.005,5);
+                    //randomDelay(0.005,5);
+                    randomDelay(crit_a,crit_b);
                     //randomDelay(0.5,1.25);
                     System.out.println("**************Iteration : "+i+" of simulation.");
                     request_crit_section();
@@ -248,6 +271,7 @@ class CNode
         do_write_operation(this.FILE);
         //sleep_ms(3);
         //randomDelay(0.5,1.25);
+        randomDelay(this.rel_a,this.rel_b);
         System.out.println("Finished critical section of client "+ c_id);
         // call release_resource for specific instance
         mutex.release_resource(randQ);
@@ -412,7 +436,6 @@ class CNode
         {
             timestamp = mutex.sword.timestamp;
         }
-        //randomDelay(0.001,0.003);
         try
         {
             // write / append to the file

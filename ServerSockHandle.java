@@ -167,7 +167,7 @@ class ServerSockHandle
             {
 	        System.out.println("server sending reply from pending queue");
                 // pop from queue
-                RequestData t = snode.mutex.sword.queue.remove();
+                RequestData t = snode.mutex.sword.queue.poll();
                 // send grant to that PID
                 c_list.get(t.id).crit_reply(snode.mutex.sword.timestamp);
             }

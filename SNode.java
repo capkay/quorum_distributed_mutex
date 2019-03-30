@@ -40,6 +40,7 @@ class SNode
     // handle to client object, ultimately self 
     CNode cnode = null;
     SNode snode = null;
+    boolean issued_start = false;
     // constructor takes clientID passed from command line from main()
     // listenSocket is called as part of starting up
     SNode(int c_id)
@@ -47,6 +48,7 @@ class SNode
         this.c_info = new ClientInfo();
         this.s_info = new ServerInfo();
         this.c_id = c_id;
+        this.issued_start = false;
     	this.port = s_info.hmap.get(c_id).port;
         this.listenSocket();
         this.snode = this;
@@ -116,24 +118,41 @@ class SNode
                 // start the random read/write simulation to access critical section based on Ricart-Agrawala algorithm
                 else if(m_START.find())
                 { 
-    		    System.out.println("**************TRIGGER START Random READ/WRITE simulation");
-                    synchronized (c_list)
+                    if(!issued_start)
                     {
-                        c_list.keySet().forEach(key -> {
-                            c_list.get(key).send_start();
-                        });
+    		        System.out.println("**************TRIGGER START Random READ/WRITE simulation");
+                        synchronized (c_list)
+                        {
+                            c_list.keySet().forEach(key -> {
+                                c_list.get(key).send_start();
+                            });
+                        }
+    		        System.out.println("**************TRIGGER FINISH Random READ/WRITE simulation");
+                        issued_start = true;
                     }
-    		    System.out.println("**************TRIGGER FINISH Random READ/WRITE simulation");
+                    else
+                    {
+    		        System.out.println("**************TRIGGER RESTART Random READ/WRITE simulation");
+                        mutex.reset_control();
+                        synchronized (c_list)
+                        {
+                                c_list.get(1).send_reset();
+                        }
+    		        System.out.println("**************TRIGGER RESTART FINISH Random READ/WRITE simulation");
+                    }
     		}
                 else if(m_RESTART.find())
                 { 
-    		    System.out.println("**************TRIGGER RESTART Random READ/WRITE simulation");
-                    mutex.reset_control();
-                    synchronized (c_list)
+                    if(issued_start)
                     {
-                            c_list.get(1).send_reset();
+    		        System.out.println("**************TRIGGER RESTART Random READ/WRITE simulation");
+                        mutex.reset_control();
+                        synchronized (c_list)
+                        {
+                                c_list.get(1).send_reset();
+                        }
+    		        System.out.println("**************TRIGGER RESTART FINISH Random READ/WRITE simulation");
                     }
-    		    System.out.println("**************TRIGGER RESTART FINISH Random READ/WRITE simulation");
     		}
                 // command to close PROGRAM
                 else if(m_FINISH.find())
