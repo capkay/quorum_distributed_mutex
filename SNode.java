@@ -254,6 +254,35 @@ class SNode
         mutex = new mutexAlgorithm(snode,cnode,c_id);
     }
 
+    public void increment_sim_finish_count()
+    {
+        int count = 0;
+        synchronized(mutex)
+        {
+            ++mutex.sword.finish_sim_count;
+            count = mutex.sword.finish_sim_count;
+        }
+
+        if(count == 5)
+        {
+            c_list.get(1).send_finish_stat_collection();
+        }
+    }
+
+    public void print_stats()
+    {
+        String buf = "";
+        buf += "\n=== STATS for entire simulation : ";
+        synchronized(mutex)
+        {
+            int total_msgs = mutex.sword.total_msgs_tx+ mutex.sword.total_msgs_rx;
+            buf +="\nNumber of messages sent = "+ mutex.sword.total_msgs_tx;
+            buf +="\nNumber of messages received = "+ mutex.sword.total_msgs_rx;
+            buf +="\nNumber of messages exchanged = "+ total_msgs;
+        }
+        buf += "\n=======================================";
+        System.out.print(buf);
+    }
     // method to create delay based on inputs in seconds
     // adapted from stackOverflow
     void randomDelay(double min, double max)

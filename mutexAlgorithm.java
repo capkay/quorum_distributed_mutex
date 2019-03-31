@@ -163,6 +163,7 @@ public class mutexAlgorithm
         sword.target_reply_count = 0;
         sword.replies_received = 0;
         sword.reset_count = 0;
+        sword.finish_sim_count= 0;
         sword.total_msgs_tx = 0;
         sword.total_msgs_rx = 0;
         sword.crit_msgs_tx = 0;

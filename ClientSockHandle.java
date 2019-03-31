@@ -174,6 +174,11 @@ class ClientSockHandle
 	System.out.println("send_reset_done to:"+remote_c_id);
         out.println("reset_done");
     }
+    public void send_stat_collection()
+    {
+	System.out.println("send_stat_collection to:"+remote_c_id);
+        out.println("stat_collection");
+    }
     public void process_reset_message()
     {
         //System.out.println("process reply message");
@@ -256,6 +261,11 @@ class ClientSockHandle
             {
     	        System.out.println("reset simulation from server!");
                 cnode.reset_simulation();
+            }
+            else if(cmd_in.equals("finish_stat_collection"))
+            {
+    	        System.out.println("trigger stat collection finish server!");
+                cnode.trigger_stat_collection();
             }
             // got a REPLY message, process it
             else if(cmd_in.equals("GRANT"))

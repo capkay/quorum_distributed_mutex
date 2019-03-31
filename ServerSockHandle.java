@@ -130,6 +130,7 @@ class ServerSockHandle
     {
         synchronized(snode.mutex)
         {
+            ++snode.mutex.sword.total_msgs_rx;
             if(!snode.mutex.sword.locked & snode.mutex.sword.queue.isEmpty())
             {
 	        System.out.println("server already unlocked and queue is empty");
@@ -169,6 +170,7 @@ class ServerSockHandle
                 // pop from queue
                 RequestData t = snode.mutex.sword.queue.poll();
                 // send grant to that PID
+                ++snode.mutex.sword.total_msgs_tx;
                 c_list.get(t.id).crit_reply(snode.mutex.sword.timestamp);
             }
         }
@@ -183,6 +185,11 @@ class ServerSockHandle
     {
 	System.out.println("send_reset to:"+remote_c_id);
         out.println("reset_simulation");
+    }
+    public void send_finish_stat_collection()
+    {
+	System.out.println("send_reset to:"+remote_c_id);
+        out.println("finish_stat_collection");
     }
     // methods to send setup related messages in the output stream
     public void send_start()
@@ -292,7 +299,8 @@ class ServerSockHandle
             // to terminate the program
             else if(cmd_in.equals("simulation_finish"))
             {
-    	        System.out.println("Finish program execution!");
+    	        System.out.println("Simulation terminate received from client "+remote_c_id +" !");
+                snode.increment_sim_finish_count();
                 //snode.end_program();
                 //snode.print_stats();
                 //return 0;
@@ -307,6 +315,11 @@ class ServerSockHandle
             {
     	        System.out.println("reset_done from "+remote_c_id);
                 snode.send_restart_message();
+            }
+            else if(cmd_in.equals("stat_collection"))
+            {
+    	        System.out.println("stat_collection from "+remote_c_id);
+                snode.print_stats();
             }
             // got a REQUEST message, process it
             else if(cmd_in.equals("REQUEST"))

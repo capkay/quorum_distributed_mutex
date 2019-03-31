@@ -236,7 +236,7 @@ class CNode
                 for(int i=0;i<20;i++)
                 {
                     randomDelay(crit_a,crit_b);
-                    System.out.println("**************Iteration : "+i+" of simulation.");
+                    System.out.println("**************Iteration : "+(i+1)+" of simulation.");
                     request_crit_section();
 
                     synchronized(mutex)
@@ -264,9 +264,11 @@ class CNode
                     print_crit_stats(i);
                 }
     	        System.out.println("**************FINISH Random READ/WRITE simulation");
-                if (!breaker){
-                s_list.get(1).send_finish();
-                print_sim_stats();}
+                if (!breaker)
+                {
+                    s_list.get(1).send_finish();
+                    print_sim_stats();
+                }
             }
         };
 
@@ -307,41 +309,48 @@ class CNode
     {
         String buf = "";
         buf += "\n=== STATS for entire simulation ===";
-        //System.out.println("\n=== STATS for entire simulation ===");
         synchronized(mutex)
         {
             buf += "\nNumber of messages sent = "+ mutex.sword.total_msgs_tx;
             buf += "\nNumber of messages received = "+ mutex.sword.total_msgs_rx;
-            //System.out.println("Number of messages sent = "+ mutex.sword.total_msgs_tx);
-            //System.out.println("Number of messages received = "+ mutex.sword.total_msgs_rx);
         }
         buf += "\n=======================================";
         System.out.print(buf);
         writeToFile(this.LOGFILE,buf);
-        //System.out.println("=======================================");
     }
 
     public void print_crit_stats(int i)
     {
         String buf = "";
-        buf += "\n=== STATS for this critical section iteration : "+i;
+        buf += "\n=== STATS for this critical section iteration : "+(i+1);
         synchronized(mutex)
         {
             int total_msgs = mutex.sword.crit_msgs_rx + mutex.sword.crit_msgs_tx;
             buf +="\nNumber of messages exchanged = "+ total_msgs;
             buf +="\nElapsed time (latency in ms) = "+ mutex.sword.crit_elapsed_time;
-            //System.out.println("Number of messages exchanged = "+ total_msgs);
-            //System.out.println("Elapsed time (latency in ms) = "+ mutex.sword.crit_elapsed_time);
         }
         buf += "\n=======================================";
-        //System.out.println("=======================================");
         System.out.print(buf);
         writeToFile(this.LOGFILE,buf);
     }
 
+    public void trigger_stat_collection()
+    {
+        if(c_id == 1)
+        {
+            for(int j=1;j<=7;j++)
+            {
+                System.out.println("STATCOLLECTION sent to "+ j);
+                // authorization set to false for the node to which deferred reply is just sent
+                // send the reply
+                cnode.s_list.get(j).send_stat_collection();
+            }
+        }
+    }
+
     void randomDelay(double min, double max)
     {
-        int random = ( (int)(max * Math.random() + min) )* c_id;
+        int random =  (int)(max * Math.random() + min) ;
         try 
         {
             System.out.println("sleep for "+random);

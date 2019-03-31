@@ -13,6 +13,7 @@ public class MEcontrol
     public long start_time;
     public long end_time;
     public int reset_count;
+    public int finish_sim_count;
     public int quorum_index;
 
     // current sequence number
@@ -28,7 +29,7 @@ public class MEcontrol
     MEcontrol(int ME)
     {
         this.timestamp = 0;
-        this.reset_count = 0;
+        this.finish_sim_count = 0;
         this.locked = false;
         this.restart= false;
         this.waiting= false;
