@@ -36,7 +36,6 @@ class CNode
     ClientInfo c_info = null;
     // hash table that contains socket connections from clients based on client IDs
     HashMap<Integer, ClientSockHandle> s_list = new HashMap<Integer, ClientSockHandle>();
-    // handle to server object, ultimately self 
     mutexAlgorithm mutex = null;
     SNode snode = null;
     CNode cnode = null;
@@ -45,8 +44,8 @@ class CNode
     double crit_a = 5;
     double crit_b = 10;
     int rel_delay  = 3;
-    // constructor takes ServerID passed from command line from main()
-    // populate_files & listenSocket is called as part of starting up
+    // constructor takes ClientID passed from command line from main()
+    // listenSocket is called as part of starting up
     CNode(int c_id)
     {
         this.c_info = new ClientInfo();
@@ -107,6 +106,9 @@ class CNode
                         System.out.println("replies_received="+mutex.sword.replies_received);
                         System.out.println("locked ="+mutex.sword.locked);
                     }
+                    System.out.println("crit_a="+crit_a);
+                    System.out.println("crit_b="+crit_b);
+                    System.out.println("rel_delay="+rel_delay);
     		}
                 else if(m_START.find())
                 { 
@@ -118,11 +120,14 @@ class CNode
                 else if(m_CRIT.find())
                 { 
                     crit_a = Double.parseDouble(m_CRIT.group(1));
+                    System.out.println("crit_a="+crit_a);
                     crit_b = Double.parseDouble(m_CRIT.group(2));
+                    System.out.println("crit_b="+crit_b);
     		}
                 else if(m_REL.find())
                 { 
                     rel_delay = Integer.valueOf(m_REL.group(1));
+                    System.out.println("rel_delay="+rel_delay);
     		}
     		// default message
     		else 
@@ -351,6 +356,8 @@ class CNode
     void randomDelay(double min, double max)
     {
         int random =  (int)(max * Math.random() + min) ;
+        //int random =  (int)(max * Math.random());
+        //random +=  (int)(min);
         try 
         {
             System.out.println("sleep for "+random);

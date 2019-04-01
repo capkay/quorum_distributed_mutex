@@ -7,6 +7,7 @@ public class ServerInfo
 {
     // define hashmap to hold server Info <Id, Endpoint Info>
     public HashMap<Integer, IPData> hmap = new HashMap<Integer, IPData>();
+    // hardcoded possible list of quorums ( list of list )
     public ArrayList<ArrayList<Integer>> quorums = new ArrayList<ArrayList<Integer>>();
     ServerInfo()
     {

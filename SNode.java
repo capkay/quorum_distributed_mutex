@@ -40,6 +40,7 @@ class SNode
     // handle to client object, ultimately self 
     CNode cnode = null;
     SNode snode = null;
+    // simulation start issued flag ; for restart logic
     boolean issued_start = false;
     // constructor takes clientID passed from command line from main()
     // listenSocket is called as part of starting up
@@ -58,12 +59,10 @@ class SNode
     public class CommandParser extends Thread
     {
       	// initialize patters for commands
-    	Pattern SETUP = Pattern.compile("^SETUP$");
     	Pattern LIST  = Pattern.compile("^LIST$");
     	Pattern START = Pattern.compile("^START$");
-    	Pattern RESTART = Pattern.compile("^RESTART$");
+    	Pattern RESTART = Pattern.compile("^R$");
     	Pattern FINISH= Pattern.compile("^FINISH$");
-    	Pattern ENQUIRE= Pattern.compile("^ENQUIRE$");
     	
     	// read from inputstream, process and execute tasks accordingly	
     	int rx_cmd(Scanner cmd)
@@ -75,28 +74,10 @@ class SNode
     		Matcher m_START= START.matcher(cmd_in);
     		Matcher m_RESTART = RESTART.matcher(cmd_in);
     		Matcher m_LIST= LIST.matcher(cmd_in);
-    		Matcher m_SETUP= SETUP.matcher(cmd_in);
     		Matcher m_FINISH= FINISH.matcher(cmd_in);
-    		Matcher m_ENQUIRE= ENQUIRE.matcher(cmd_in);
     		
-                // perform setup connections, check for clientID 0
-    		if(m_SETUP.find())
-                { 
-                    if( c_id == 1 )
-                    {
-                        //setup_connections();
-                    }
-                    else
-                    {
-                        System.out.println("Enter SETUP command on ServerID 1!");
-                    }
-    		}
-                // do a manual enquiry of files present on server, check if files list is empty, then proceed
-                else if(m_ENQUIRE.find())
-                { 
-                }
                 // check the list of socket connections available on this client
-                else if(m_LIST.find())
+                if(m_LIST.find())
                 { 
                     synchronized (c_list)
                     {
@@ -118,41 +99,11 @@ class SNode
                 // start the random read/write simulation to access critical section based on Ricart-Agrawala algorithm
                 else if(m_START.find())
                 { 
-                    if(!issued_start)
-                    {
-    		        System.out.println("**************TRIGGER START Random READ/WRITE simulation");
-                        synchronized (c_list)
-                        {
-                            c_list.keySet().forEach(key -> {
-                                c_list.get(key).send_start();
-                            });
-                        }
-    		        System.out.println("**************TRIGGER FINISH Random READ/WRITE simulation");
-                        issued_start = true;
-                    }
-                    else
-                    {
-    		        System.out.println("**************TRIGGER RESTART Random READ/WRITE simulation");
-                        mutex.reset_control();
-                        synchronized (c_list)
-                        {
-                                c_list.get(1).send_reset();
-                        }
-    		        System.out.println("**************TRIGGER RESTART FINISH Random READ/WRITE simulation");
-                    }
+                    start_or_restart();
     		}
                 else if(m_RESTART.find())
                 { 
-                    if(issued_start)
-                    {
-    		        System.out.println("**************TRIGGER RESTART Random READ/WRITE simulation");
-                        mutex.reset_control();
-                        synchronized (c_list)
-                        {
-                                c_list.get(1).send_reset();
-                        }
-    		        System.out.println("**************TRIGGER RESTART FINISH Random READ/WRITE simulation");
-                    }
+                    start_or_restart();
     		}
                 // command to close PROGRAM
                 else if(m_FINISH.find())
@@ -190,6 +141,32 @@ class SNode
     	}
     }
 
+    public void start_or_restart()
+    {
+        if(!issued_start)
+        {
+            System.out.println("**************TRIGGER START Random READ/WRITE simulation");
+            synchronized (c_list)
+            {
+                c_list.keySet().forEach(key -> {
+                    c_list.get(key).send_start();
+                });
+            }
+            System.out.println("**************TRIGGER FINISH Random READ/WRITE simulation");
+            issued_start = true;
+        }
+        else
+        {
+            System.out.println("**************TRIGGER RESTART Random READ/WRITE simulation");
+            mutex.reset_control();
+            synchronized (c_list)
+            {
+                    c_list.get(1).send_reset();
+            }
+            System.out.println("**************TRIGGER RESTART FINISH Random READ/WRITE simulation");
+        }
+    }
+
     public void restart_simulation()
     {
         synchronized(mutex)
@@ -201,13 +178,13 @@ class SNode
 
     public void send_restart_message()
     {
-    		    System.out.println("restart from server");
-                    synchronized (c_list)
-                    {
-                        c_list.keySet().forEach(key -> {
-                            c_list.get(key).send_restart();
-                        });
-                    }
+        System.out.println("restart from server");
+        synchronized (c_list)
+        {
+            c_list.keySet().forEach(key -> {
+                c_list.get(key).send_restart();
+            });
+        }
     }
 
     // end program method, calls close on all socket instances and exits program
@@ -298,178 +275,6 @@ class SNode
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-    }
-
-    // method to setup connections to servers
-    public void setup_servers()
-    {
-        if(c_id<=3)
-        {
-            // all 3 servers
-            for(int i=2*c_id;i<=(2*c_id)+1;i++ )
-            {
-                // get the server IP and port info
-                String t_ip = s_info.hmap.get(i).ip;
-                int t_port = Integer.valueOf(s_info.hmap.get(i).port);
-                Thread x = new Thread()
-                {
-                    public void run()
-                    {
-                        try
-                        {
-                            Socket s = new Socket(t_ip,t_port);
-                            // ServerSockHandle instance with svr_hdl true and rx_hdl false as this is the socket initiator
-                            ServerSockHandle t = new ServerSockHandle(s,ip,port,c_id,c_list,s_list,false,true,snode);
-                        }
-                        catch (UnknownHostException e) 
-                        {
-                        	System.out.println("Unknown host");
-                        	System.exit(1);
-                        } 
-                        catch (IOException e) 
-                        {
-                        	System.out.println("No I/O");
-                                e.printStackTrace(); 
-                        	System.exit(1);
-                        }
-                    }
-                };
-
-                x.setDaemon(true); 	// terminate when main ends
-                x.setName("Server_"+c_id+"_ServerSockHandle_to_Server"+i);
-                x.start(); 			// start the thread
-            }
-        }
-        // another thread to check until all connections are established ( ie. socket list size =4 )
-        // then send a message to my_id+1 client to initiate its connection setup phase
-        Thread y = new Thread()
-        {
-            public void run()
-            {
-                int size = 0;
-                int target = 0;
-                if(c_id ==1)
-                    target = 2;
-                else if( (c_id == 2) | (c_id ==3))
-                    target = 3;
-                else 
-                    target = 1;
-	        System.out.println("connection setup target:"+target);
-                // wait till client connections are setup
-                while (size != target)
-                {
-                    synchronized(s_list)
-                    {
-                        size = s_list.size();
-                    }
-                }
-	        System.out.println("connection setup target reached");
-                // send chain init message to trigger connection setup
-                // phase on the next client
-                if (c_id <=3)
-                {
-	            System.out.println("chain setup init");
-                    s_list.get((2*c_id)).send_setup();
-                    s_list.get((2*c_id)+1).send_setup();
-	            System.out.println("chain setup init");
-                }
-                if (c_id >3)
-                {
-                    s_list.keySet().forEach(key -> {
-                        System.out.println("send setup finish:"+key + " => ID " + s_list.get(key).remote_c_id);
-                        s_list.get(key).send_setup_finish();
-                    });
-                }
-            }
-        };
-            
-        y.setDaemon(true); 	// terminate when main ends
-        y.start(); 			// start the thread
-    }
-
-    // method to setup connections to servers
-    public void setup_clients()
-    {
-        // all 3 servers
-        for(int i=1;i<=1;i++ )
-        {
-            // get the server IP and port info
-            String t_ip = c_info.hmap.get(i).ip;
-            int t_port = Integer.valueOf(c_info.hmap.get(i).port);
-            Thread x = new Thread()
-            {
-                public void run()
-                {
-                    try
-                    {
-                        Socket s = new Socket(t_ip,t_port);
-                        // ServerSockHandle instance with svr_hdl true and rx_hdl false as this is the socket initiator
-                        ServerSockHandle t = new ServerSockHandle(s,ip,port,c_id,c_list,s_list,false,true,snode);
-                    }
-                    catch (UnknownHostException e) 
-                    {
-                    	System.out.println("Unknown host");
-                    	System.exit(1);
-                    } 
-                    catch (IOException e) 
-                    {
-                    	System.out.println("No I/O");
-                        e.printStackTrace(); 
-                    	System.exit(1);
-                    }
-                }
-            };
-
-            x.setDaemon(true); 	// terminate when main ends
-            x.setName("Server_"+c_id+"_ServerSockHandle_to_Client"+i);
-            x.start(); 			// start the thread
-        }
-        // another thread to check until all connections are established ( ie. socket list size =4 )
-        // then send a message to my_id+1 client to initiate its connection setup phase
-        Thread y = new Thread()
-        {
-            public void run()
-            {
-                int size = 0;
-                int target = 1;
-	        System.out.println("client connection setup target:"+target);
-                // wait till client connections are setup
-                while (size != target)
-                {
-                    synchronized(s_list)
-                    {
-                        size = s_list.size();
-                    }
-                }
-	        System.out.println("client connection setup target reached");
-                // send chain init message to trigger connection setup
-                // if this is not the last client node (ID =4)
-                // send chain init message to trigger connection setup
-                // phase on the next client
-                if(c_id != 7)
-                {
-                    s_list.get(c_id+1).send_setup();
-                    System.out.println("chain setup init");
-                }
-                // send the setup finish, from Client 4
-                // indicating connection setup phase is complete
-                else
-                {
-                    s_list.get(1).send_setup_finish();
-                }
-                // phase on the next client
-            }
-        };
-            
-        y.setDaemon(true); 	// terminate when main ends
-        y.start(); 			// start the thread
-    }
-
-    // method encompasses both server and client connection setup
-    public void setup_connections()
-    {
-        //setup_servers();
-        setup_clients();
     }
 
     // method to start server and listen for incoming connections

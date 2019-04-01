@@ -139,6 +139,7 @@ class ServerSockHandle
                 snode.mutex.sword.timestamp = snode.mutex.sword.timestamp + 1;
                 snode.mutex.sword.timestamp = Math.max(their_sn+1,snode.mutex.sword.timestamp);
                 // send GRANT message
+                ++snode.mutex.sword.total_msgs_tx;
                 crit_reply(snode.mutex.sword.timestamp);
             }
             else
@@ -284,12 +285,6 @@ class ServerSockHandle
                     return 0;
                 }
             }
-            // initiate connection setup once this message is received
-            else if(cmd_in.equals("chain_setup"))
-            {
-    	        System.out.println("chain_setup ");
-                snode.setup_connections();
-            }
             // perform enquiry and create the Ricart-Agrawala instances after this message
             else if(cmd_in.equals("chain_setup_finish"))
             {
@@ -315,6 +310,11 @@ class ServerSockHandle
             {
     	        System.out.println("reset_done from "+remote_c_id);
                 snode.send_restart_message();
+            }
+            else if(cmd_in.equals("restart_deadlock"))
+            {
+    	        System.out.println("restart deadlock from "+remote_c_id);
+                snode.start_or_restart();
             }
             else if(cmd_in.equals("stat_collection"))
             {

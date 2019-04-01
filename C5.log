@@ -1,5 +1,105 @@
 
 === STATS for this critical section iteration : 1
+Number of messages exchanged = 12
+Elapsed time (latency in ms) = 1
+=======================================
+
+=== STATS for this critical section iteration : 2
+Number of messages exchanged = 12
+Elapsed time (latency in ms) = 45
+=======================================
+
+=== STATS for this critical section iteration : 3
 Number of messages exchanged = 9
-Elapsed time (latency in ms) = 237
+Elapsed time (latency in ms) = 41
+=======================================
+
+=== STATS for this critical section iteration : 4
+Number of messages exchanged = 9
+Elapsed time (latency in ms) = 62
+=======================================
+
+=== STATS for this critical section iteration : 5
+Number of messages exchanged = 12
+Elapsed time (latency in ms) = 46
+=======================================
+
+=== STATS for this critical section iteration : 6
+Number of messages exchanged = 12
+Elapsed time (latency in ms) = 42
+=======================================
+
+=== STATS for this critical section iteration : 7
+Number of messages exchanged = 12
+Elapsed time (latency in ms) = 98
+=======================================
+
+=== STATS for this critical section iteration : 8
+Number of messages exchanged = 12
+Elapsed time (latency in ms) = 130
+=======================================
+
+=== STATS for this critical section iteration : 9
+Number of messages exchanged = 12
+Elapsed time (latency in ms) = 43
+=======================================
+
+=== STATS for this critical section iteration : 10
+Number of messages exchanged = 9
+Elapsed time (latency in ms) = 42
+=======================================
+
+=== STATS for this critical section iteration : 11
+Number of messages exchanged = 9
+Elapsed time (latency in ms) = 63
+=======================================
+
+=== STATS for this critical section iteration : 12
+Number of messages exchanged = 9
+Elapsed time (latency in ms) = 43
+=======================================
+
+=== STATS for this critical section iteration : 13
+Number of messages exchanged = 12
+Elapsed time (latency in ms) = 103
+=======================================
+
+=== STATS for this critical section iteration : 14
+Number of messages exchanged = 9
+Elapsed time (latency in ms) = 72
+=======================================
+
+=== STATS for this critical section iteration : 15
+Number of messages exchanged = 12
+Elapsed time (latency in ms) = 44
+=======================================
+
+=== STATS for this critical section iteration : 16
+Number of messages exchanged = 9
+Elapsed time (latency in ms) = 0
+=======================================
+
+=== STATS for this critical section iteration : 17
+Number of messages exchanged = 9
+Elapsed time (latency in ms) = 42
+=======================================
+
+=== STATS for this critical section iteration : 18
+Number of messages exchanged = 9
+Elapsed time (latency in ms) = 44
+=======================================
+
+=== STATS for this critical section iteration : 19
+Number of messages exchanged = 9
+Elapsed time (latency in ms) = 42
+=======================================
+
+=== STATS for this critical section iteration : 20
+Number of messages exchanged = 12
+Elapsed time (latency in ms) = 43
+=======================================
+
+=== STATS for entire simulation ===
+Number of messages sent = 140
+Number of messages received = 70
 =======================================

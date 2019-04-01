@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.Iterator;
 import java.util.Set;
 
-// ClientSockHandle class, to handle each socket connection to all clients
+// ClientSockHandle class, to handle each socket connection to all servers
 class ClientSockHandle
 {
     // to send data out
@@ -117,50 +117,29 @@ class ClientSockHandle
     }
 
     // methods to send setup related messages in the output stream
+    public void send_setup()
+    {
+	System.out.println("chain_setup to:"+remote_c_id);
+        out.println("chain_setup");
+    }
+    public void send_restart_deadlock()
+    {
+	System.out.println("restart_deadlock to:"+remote_c_id);
+        out.println("restart_deadlock");
+    }
     public void send_restart()
     {
 	System.out.println("send_restart to:"+remote_c_id);
         out.println("restart_simulation");
-    }
-    
-    // method to send the REQUEST message with timestamp and file identifier
-    public synchronized void crit_request(int ts)
-    {
-        out.println("REQUEST");
-        out.println(ts);
-        out.println(my_c_id);
-    }
-
-    // method to send the REPLY message with file identifier
-    public synchronized void crit_reply(int ts)
-    {
-        out.println("GRANT");
-        out.println(ts);
-        out.println(my_c_id);
-    }
-
-    // method to send the REPLY message with file identifier
-    public synchronized void crit_release(int ts)
-    {
-        out.println("RELEASE");
-        out.println(ts);
-        out.println(my_c_id);
     }
     public void send_reset()
     {
 	System.out.println("send_reset to:"+remote_c_id);
         out.println("reset_simulation");
     }
-
-    // methods to send setup related messages in the output stream
-    public void send_setup()
-    {
-	System.out.println("chain_setup to:"+remote_c_id);
-        out.println("chain_setup");
-    }
-
     public void send_finish()
     {
+	System.out.println("simulation_finish to:"+remote_c_id);
         out.println("simulation_finish");
     }
 
@@ -179,36 +158,67 @@ class ClientSockHandle
 	System.out.println("send_stat_collection to:"+remote_c_id);
         out.println("stat_collection");
     }
+    
+    // method to send the REQUEST message with timestamp
+    public synchronized void crit_request(int ts)
+    {
+        out.println("REQUEST");
+        out.println(ts);
+        out.println(my_c_id);
+    }
+
+    // method to send the REPLY message with timestamp
+    public synchronized void crit_reply(int ts)
+    {
+        out.println("GRANT");
+        out.println(ts);
+        out.println(my_c_id);
+    }
+
+    // method to send the RELEASE message with timestamp
+    public synchronized void crit_release(int ts)
+    {
+        out.println("RELEASE");
+        out.println(ts);
+        out.println(my_c_id);
+    }
+
+
+    // increment the reset count to make sure all servers are reset
     public void process_reset_message()
     {
-        //System.out.println("process reply message");
         synchronized(cnode.mutex)
         {
             ++cnode.mutex.sword.reset_count;
         }
     }
-    // method to process received reply message ( part of Ricard-Agrawala algorithm )
-    // takes received ID, filename
+
+    // method to process received reply message
+    // takes received ID and timestamp
     public void process_reply_message(int their_sn,int j)
     {
-        //System.out.println("process reply message");
         int msgs = 0;
         int target= 0;
         synchronized(cnode.mutex)
         {
+            // update logical clock 
             cnode.mutex.sword.timestamp = cnode.mutex.sword.timestamp + 1;
             cnode.mutex.sword.timestamp = Math.max(their_sn+1,cnode.mutex.sword.timestamp);
+            // update and record the stats
             ++cnode.mutex.sword.replies_received;
             ++cnode.mutex.sword.crit_msgs_rx;
             msgs = cnode.mutex.sword.replies_received;
             target = cnode.mutex.sword.target_reply_count;
             //System.out.println("replies received "+ cnode.mutex.sword.replies_received);
         }
+
+        // enter critical section when required number of replies are received
         if(target == msgs)
         {
             cnode.enter_crit_release();
         }
     }
+
     // method to process incoming commands and data associated with them
     public int rx_cmd(BufferedReader cmd,PrintWriter out)
     {
@@ -242,32 +252,37 @@ class ClientSockHandle
                 cnode.end_program();
                 return 0;
             }
+            // to start simulation
             else if(cmd_in.equals("start_simulation"))
             {
     	        System.out.println("start_simulation from server!");
                 cnode.start_simulation();
             }
+            // to restart simulation
             else if(cmd_in.equals("restart_simulation"))
             {
     	        System.out.println("restart simulation from server!");
                 cnode.restart_simulation();
             }
+            // to process rese_done messages; part of restarting simulation
             else if(cmd_in.equals("reset_done"))
             {
     	        System.out.println("reset done from server!");
                 process_reset_message();
             }
+            // to initiate the simulation restart feature
             else if(cmd_in.equals("reset_simulation"))
             {
     	        System.out.println("reset simulation from server!");
                 cnode.reset_simulation();
             }
+            // to enable stat collection at the end of all simulations
             else if(cmd_in.equals("finish_stat_collection"))
             {
     	        System.out.println("trigger stat collection finish server!");
                 cnode.trigger_stat_collection();
             }
-            // got a REPLY message, process it
+            // got a GRANT message, process it
             else if(cmd_in.equals("GRANT"))
             {
                 int ts = Integer.valueOf(in.readLine());

@@ -5,6 +5,7 @@ public class MEcontrol
 {
     // ME is my_id
     public int ME;
+    // stats 
     public int total_msgs_tx;
     public int total_msgs_rx;
     public int crit_msgs_tx;
@@ -16,14 +17,17 @@ public class MEcontrol
     public int finish_sim_count;
     public int quorum_index;
 
-    // current sequence number
+    // current sequence number based on lamport's logical clock
     public int timestamp;
     public int target_reply_count;
     public int replies_received;
-    // using the critical section : boolean flag 
+    // token passed to some client already; locked flag
     public boolean locked;
+    // issued a request and waiting to enter critical section
     public boolean waiting;
+    // flag to initiate restart
     public boolean restart;
+    // priority queue to hold pending requests ordered on timestamp
     public PriorityQueue<RequestData> queue = null;
     // constructor takes ID
     MEcontrol(int ME)
