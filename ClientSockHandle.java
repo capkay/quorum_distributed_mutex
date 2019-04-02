@@ -217,8 +217,8 @@ class ClientSockHandle
             synchronized(cnode.mutex)
             {
                 // calculate latency
-                sword.end_time = System.currentTimeMillis();
-                sword.crit_elapsed_time = sword.end_time - sword.start_time;
+                cnode.mutex.sword.end_time = System.currentTimeMillis();
+                cnode.mutex.sword.crit_elapsed_time = cnode.mutex.sword.end_time - cnode.mutex.sword.start_time;
             }
             cnode.enter_crit_release();
         }

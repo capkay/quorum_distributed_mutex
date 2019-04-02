@@ -258,6 +258,12 @@ class CNode
     	        System.out.println("**************START Random READ/WRITE simulation");
                 for(int i=0;i<20;i++)
                 {
+                    synchronized(mutex)
+                    {
+                        // mark current system time to measure latency
+                        mutex.sword.start_time = System.currentTimeMillis();
+                    }
+                        
                     // wait before trying to enter the critical section
                     randomDelay(crit_a,crit_b);
                     System.out.println("**************Iteration : "+(i+1)+" of simulation.");

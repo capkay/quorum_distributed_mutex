@@ -54,10 +54,8 @@ public class mutexAlgorithm
             // update logical clock
             sword.timestamp = sword.timestamp + 1;
             System.out.println("Request resource timestamp :"+sword.timestamp);
-            // mark current system time to measure latency
-            sword.start_time = System.currentTimeMillis();
 
-            // set variables; self-explainable
+            // set variables;
             sword.target_reply_count = s_info.quorums.get(randQ).size();
             sword.replies_received = 0;
             target = sword.target_reply_count;
