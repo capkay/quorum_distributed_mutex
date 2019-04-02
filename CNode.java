@@ -36,13 +36,20 @@ class CNode
     ClientInfo c_info = null;
     // hash table that contains socket connections from clients based on client IDs
     HashMap<Integer, ClientSockHandle> s_list = new HashMap<Integer, ClientSockHandle>();
+    // to hold mutual exclusion algorithm instance
     mutexAlgorithm mutex = null;
+    // variables to hold current client/server object
     SNode snode = null;
     CNode cnode = null;
+    // common file to all clients
     String FILE = "mutex.log";
+    // logfile
     String LOGFILE = null;
+    // minimum delay in ms
     double crit_a = 5;
+    // random delay upto this value that is added to minimum delay
     double crit_b = 10;
+    // delay inside critical section
     int rel_delay  = 3;
     // constructor takes ClientID passed from command line from main()
     // listenSocket is called as part of starting up
@@ -170,6 +177,7 @@ class CNode
         }
     }
 
+    // logic ot reset simulation
     public void reset_simulation()
     {
         if(c_id == 1)
@@ -178,24 +186,26 @@ class CNode
             for(int j=2;j<8;j++)
             {
                 System.out.println("RESET sent to "+ j);
-                // authorization set to false for the node to which deferred reply is just sent
-                // send the reply
+                // send the reset message to servers
                 cnode.s_list.get(j).send_reset();
             }
             int t = 0;
+            // wait till all other servers have been reset
             System.out.println("wait for reset complete in servers");
-            while ( t!=6)
+            while (t!=6)
             {
-            synchronized(mutex)
-            {
-                t = mutex.sword.reset_count;
-            }
+                synchronized(mutex)
+                {
+                    t = mutex.sword.reset_count;
+                }
             }
             System.out.println("finished wait for reset complete in servers");
+            // send reset done; which if followed by restart_simulation from Server 1
             cnode.s_list.get(1).send_reset_done();
         }
     }
 
+    // restart simulation by exiting current thread and then spawn simulation again
     public void restart_simulation()
     {
 
@@ -203,10 +213,14 @@ class CNode
         boolean waiting = false;
         synchronized(mutex)
         {
+            // set restart flag to true to enable current thread to break out
             mutex.sword.restart = true;
+            // resume the current thread from its wait
             mutex.notifyAll();
             waiting = mutex.sword.waiting;
         }
+        // if deadlocked; waiting would be true
+        // wait till the older simulation thread is finished
         if(waiting)
         {
             boolean r = true;
@@ -218,14 +232,17 @@ class CNode
                 }
             }
         }
+        // simulation had successfully finished; in this case just start the simulation again
         else
         {
             synchronized(mutex)
             {
+                // reset mutex variables
                 mutex.reset_control();
             }
         }
     	System.out.println("**************ENTERING START AGAIN");
+        // call start simulation
         start_simulation();
     }
 
@@ -236,10 +253,12 @@ class CNode
         {
             public void run()
             {
+                // flag to check if need to end the thread
                 boolean breaker = false;
     	        System.out.println("**************START Random READ/WRITE simulation");
                 for(int i=0;i<20;i++)
                 {
+                    // wait before trying to enter the critical section
                     randomDelay(crit_a,crit_b);
                     System.out.println("**************Iteration : "+(i+1)+" of simulation.");
                     request_crit_section();
@@ -250,6 +269,7 @@ class CNode
                         {
                             try
                             {
+                                // release lock and wait till all replies are received
                                 mutex.wait();
                             }
                             catch (InterruptedException e)  
@@ -258,6 +278,7 @@ class CNode
                                 Thread.currentThread().interrupt(); 
                             }
                         }
+                        // restart if needed
                         if(mutex.sword.restart)
                         {
                             System.out.println("**************RESTARTING SIMULATION");
@@ -266,12 +287,15 @@ class CNode
                             break;
                         }
                     }
+                    // print stats for current iteration of simulation
                     print_crit_stats(i);
                 }
     	        System.out.println("**************FINISH Random READ/WRITE simulation");
                 if (!breaker)
                 {
+                    // send trigger message to Server 1 denoting finish of simulation
                     s_list.get(1).send_finish();
+                    // print entire simulation stats
                     print_sim_stats();
                 }
             }
@@ -286,10 +310,11 @@ class CNode
     public void request_crit_section()
     {
         System.out.println("\n=== Initiate REQUEST ===");
-        // choose a random file from the populated list
-        // call request_resource for the specific instance of 
+        // choose a random quorum
         int randQ = (int)( (s_info.quorums.size()) * Math.random() + 0);
+        // call request_resource
         mutex.request_resource(randQ);
+        // check for restart flag
         synchronized(mutex)
         {
             if(mutex.sword.restart)
@@ -306,10 +331,11 @@ class CNode
         // write to file
         do_write_operation(this.FILE);
         System.out.println("Finished critical section of client "+ c_id);
-        // call release_resource for specific instance
+        // call release_resource 
         mutex.release_resource();
     }
 
+    // stat collection; display and log to file; for entire simulation
     public void print_sim_stats()
     {
         String buf = "";
@@ -324,6 +350,7 @@ class CNode
         writeToFile(this.LOGFILE,buf);
     }
 
+    // stat collection; display and log to file; for current iteration of simulation
     public void print_crit_stats(int i)
     {
         String buf = "";
@@ -339,6 +366,9 @@ class CNode
         writeToFile(this.LOGFILE,buf);
     }
 
+    // send message to all servers to print their stats at the end of all simulations
+    // Server 1 sends message to Client 1 indicating computation has terminated
+    // thus Client 1 informs all other servers to print their STATS
     public void trigger_stat_collection()
     {
         if(c_id == 1)
@@ -346,18 +376,18 @@ class CNode
             for(int j=1;j<=7;j++)
             {
                 System.out.println("STATCOLLECTION sent to "+ j);
-                // authorization set to false for the node to which deferred reply is just sent
-                // send the reply
+                // send the trigger message
                 cnode.s_list.get(j).send_stat_collection();
             }
         }
     }
 
+    // delay generating method : time unit is ms
+    // min is the least amount of delay guaranteed to happen
+    // max is the randomness on top of this min value
     void randomDelay(double min, double max)
     {
         int random =  (int)(max * Math.random() + min) ;
-        //int random =  (int)(max * Math.random());
-        //random +=  (int)(min);
         try 
         {
             System.out.println("sleep for "+random);
@@ -370,6 +400,7 @@ class CNode
         }
     }
 
+    // sleep for fixed time
     void sleep_ms(int val)
     {
         try 
@@ -383,6 +414,7 @@ class CNode
             e.printStackTrace();
         }
     }
+
     // end program method, calls close on all socket instances and exits program
     public void end_program()
     {
@@ -396,8 +428,7 @@ class CNode
                 }
                 catch (IOException e) 
                 {
-                	System.out.println("No I/O");
-                	//System.exit(1);
+                    System.out.println("No I/O");
                     e.printStackTrace(); 
                 }
             });
@@ -405,6 +436,7 @@ class CNode
         System.exit(1);
     }
 
+    // helper method for logging purposes
     public void writeToFile(String filename, String content)
     {
         // directory is based on serverID
@@ -432,7 +464,9 @@ class CNode
             e.printStackTrace();
         }
     }
-    // write to file
+
+    // write to common file when in critical section
+    // stay in critical section for REL_DELAY amount of time
     public void do_write_operation(String filename)
     {
         // directory is based on serverID
@@ -468,6 +502,7 @@ class CNode
     }
 
     // method to setup connections to servers
+    // called when starting the CLient
     public void setup_servers()
     {
         // all 7 servers
@@ -504,8 +539,9 @@ class CNode
             x.setName("Client_"+c_id+"_ClientSockHandle_to_Server"+i);
             x.start(); 			// start the thread
         }
-        // another thread to check until all connections are established ( ie. socket list size =4 )
-        // then send a message to my_id+1 client to initiate its connection setup phase
+
+        // another thread to check until all connections are established ( ie. socket list size =7 )
+        // then initialize the mutexAlgorithm instance to hand over all object handles(sockets to servers)
         Thread y = new Thread()
         {
             public void run()
@@ -522,9 +558,10 @@ class CNode
                     }
                 }
 	        System.out.println("connection setup target reached");
-                // send chain init message to trigger connection setup
-                // phase on the next client
+                // create mutex
                 create_mutexAlgorithm();
+                // send trigger message to enable servers to create instance 
+                // of mutex as Client 5 is supposed to be started at the end
                 if (c_id == 5)
                 {
                     s_list.keySet().forEach(key -> {
@@ -539,8 +576,7 @@ class CNode
         y.start(); 			// start the thread
     }
 
-    // method to create multiple instances of Ricart-Agrawala algorithm
-    // save it to a hash corresponding to filenames
+    // create instance of mutex
     public void create_mutexAlgorithm()
     {
         mutex = new mutexAlgorithm(snode,cnode,c_id);

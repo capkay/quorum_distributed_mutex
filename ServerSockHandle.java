@@ -124,42 +124,48 @@ class ServerSockHandle
         read.start();		// start the thread	
     }
 
-    // method to process received request message ( part of Ricard-Agrawala algorithm )
-    // takes received sequence number, received ID, filename
+    // method to process received request message ( part of mutex algorithm )
+    // takes received logical clock, received ID
     public void process_request_message(int their_sn,int j)
     {
         synchronized(snode.mutex)
         {
+            // update totals
             ++snode.mutex.sword.total_msgs_rx;
+            // first request
+            // unlocked server and queue is empty
             if(!snode.mutex.sword.locked & snode.mutex.sword.queue.isEmpty())
             {
 	        System.out.println("server already unlocked and queue is empty");
-                // first request
+                // lock server 
                 snode.mutex.sword.locked = true;
+                // update logical clock
                 snode.mutex.sword.timestamp = snode.mutex.sword.timestamp + 1;
                 snode.mutex.sword.timestamp = Math.max(their_sn+1,snode.mutex.sword.timestamp);
-                // send GRANT message
+                // send GRANT message and update TX counter
                 ++snode.mutex.sword.total_msgs_tx;
                 crit_reply(snode.mutex.sword.timestamp);
             }
             else
             {
+                // add request to queue
 	        System.out.println("adding request to queue");
-                // add to queue
                 RequestData t = new RequestData(their_sn,j);
                 snode.mutex.sword.queue.add(t);
             }
         }
     }
 
-    // method to process received reply message ( part of Ricard-Agrawala algorithm )
-    // takes received ID, filename
+    // method to process received reply message ( part of mutex algorithm )
+    // takes received clock, received ID
     public void process_release_message(int their_sn,int j)
     {
         synchronized(snode.mutex)
         {
+            // update logical clock
             snode.mutex.sword.timestamp = snode.mutex.sword.timestamp + 1;
             snode.mutex.sword.timestamp = Math.max(their_sn+1,snode.mutex.sword.timestamp);
+            // unlock server if queue is empty
             if(snode.mutex.sword.queue.isEmpty() & snode.mutex.sword.locked)
             {
                 snode.mutex.sword.locked = false;
@@ -192,31 +198,27 @@ class ServerSockHandle
 	System.out.println("send_reset to:"+remote_c_id);
         out.println("finish_stat_collection");
     }
-    // methods to send setup related messages in the output stream
     public void send_start()
     {
 	System.out.println("send_start to:"+remote_c_id);
         out.println("start_simulation");
     }
-    // methods to send setup related messages in the output stream
     public void send_setup()
     {
 	System.out.println("chain_setup to:"+remote_c_id);
         out.println("chain_setup");
     }
-
     public void send_finish()
     {
         out.println("simulation_finish");
     }
-
     public void send_setup_finish()
     {
 	System.out.println("setup_finish to:"+remote_c_id);
         out.println("chain_setup_finish");
     }
 
-    // method to send the REQUEST message with timestamp and file identifier
+    // method to send the REQUEST message with timestamp
     public synchronized void crit_request(int ts)
     {
         out.println("REQUEST");
@@ -224,7 +226,7 @@ class ServerSockHandle
         out.println(my_c_id);
     }
 
-    // method to send the REPLY message with file identifier
+    // method to send the REPLY/GRANT message with timestamp
     public synchronized void crit_reply(int ts)
     {
 	System.out.println("GRANT to "+remote_c_id);
@@ -241,7 +243,7 @@ class ServerSockHandle
             // get blocked in readLine until something actually comes on the inputStream
             // then perform actions based on the received command
     	    String cmd_in = cmd.readLine();
-            // initial_setup sequence to populate the client socket list stored by the client
+            // initial_setup sequence to populate the socket list stored by the parent
     	    if(cmd_in.equals("initial_setup_server"))
             {
     	        System.out.println("got cmd 1");
@@ -285,37 +287,38 @@ class ServerSockHandle
                     return 0;
                 }
             }
-            // perform enquiry and create the Ricart-Agrawala instances after this message
+            // create instance of mutex algorithm after connections are established
             else if(cmd_in.equals("chain_setup_finish"))
             {
     	        System.out.println("connection setup finished");
                 snode.create_mutexAlgorithm();
             }
-            // to terminate the program
+            // to log simulation finish from clients
             else if(cmd_in.equals("simulation_finish"))
             {
     	        System.out.println("Simulation terminate received from client "+remote_c_id +" !");
                 snode.increment_sim_finish_count();
-                //snode.end_program();
-                //snode.print_stats();
-                //return 0;
             }
+            // reset simulation from client 1
             else if(cmd_in.equals("reset_simulation"))
             {
     	        System.out.println("reset from "+remote_c_id);
                 snode.restart_simulation();
                 out.println("reset_done");
             }
+            // all servers have been reset
             else if(cmd_in.equals("reset_done"))
             {
     	        System.out.println("reset_done from "+remote_c_id);
                 snode.send_restart_message();
             }
+            // TODO: extra feature to restart in case of deadlock; based on timeouts
             else if(cmd_in.equals("restart_deadlock"))
             {
     	        System.out.println("restart deadlock from "+remote_c_id);
                 snode.start_or_restart();
             }
+            // print server stats at the end of all simulations
             else if(cmd_in.equals("stat_collection"))
             {
     	        System.out.println("stat_collection from "+remote_c_id);
@@ -329,7 +332,7 @@ class ServerSockHandle
     	        System.out.println("REQUEST received from PID "+pid+" with timestamp "+ts);
                 process_request_message(ts,pid);
             }
-            // got a REPLY message, process it
+            // got a RELEASE message, process it
             else if(cmd_in.equals("RELEASE"))
             {
                 int ts = Integer.valueOf(in.readLine());

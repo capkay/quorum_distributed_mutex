@@ -209,7 +209,6 @@ class ClientSockHandle
             ++cnode.mutex.sword.crit_msgs_rx;
             msgs = cnode.mutex.sword.replies_received;
             target = cnode.mutex.sword.target_reply_count;
-            //System.out.println("replies received "+ cnode.mutex.sword.replies_received);
         }
 
         // enter critical section when required number of replies are received
@@ -227,7 +226,7 @@ class ClientSockHandle
             // get blocked in readLine until something actually comes on the inputStream
             // then perform actions based on the received command
     	    String cmd_in = cmd.readLine();
-            // initial_setup_server sequence to populate the client socket list stored by the server
+            // initial_setup_server sequence to populate the socket list stored by the parent node 
     	    if(cmd_in.equals("initial_setup_client"))
             {
     	        System.out.println("got cmd 1");
@@ -264,7 +263,7 @@ class ClientSockHandle
     	        System.out.println("restart simulation from server!");
                 cnode.restart_simulation();
             }
-            // to process rese_done messages; part of restarting simulation
+            // to process reset_done messages; part of restarting simulation
             else if(cmd_in.equals("reset_done"))
             {
     	        System.out.println("reset done from server!");

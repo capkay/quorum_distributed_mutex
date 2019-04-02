@@ -6,20 +6,26 @@ public class MEcontrol
     // ME is my_id
     public int ME;
     // stats 
+    // totals for entire simulation
     public int total_msgs_tx;
     public int total_msgs_rx;
+    // counts for current request/iteration of the simulation
     public int crit_msgs_tx;
     public int crit_msgs_rx;
+    // to measure latency of accessing critical section
     public long crit_elapsed_time;
     public long start_time;
     public long end_time;
+    // control variables for extra features like restart, server stat collection, quorum
     public int reset_count;
     public int finish_sim_count;
     public int quorum_index;
 
     // current sequence number based on lamport's logical clock
     public int timestamp;
+    // how many replies needed; equal to quorum size
     public int target_reply_count;
+    // how many replies/GRANTs received
     public int replies_received;
     // token passed to some client already; locked flag
     public boolean locked;

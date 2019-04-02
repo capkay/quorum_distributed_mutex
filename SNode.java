@@ -36,13 +36,14 @@ class SNode
     HashMap<Integer, ServerSockHandle> c_list = new HashMap<Integer, ServerSockHandle>();
     // hash table that contains socket connections to servers based on ServerIDs
     HashMap<Integer, ServerSockHandle> s_list = new HashMap<Integer, ServerSockHandle>();
+    // to hold mutual exclusion algorithm instance
     mutexAlgorithm mutex = null;
-    // handle to client object, ultimately self 
+    // variables to hold current client/server object
     CNode cnode = null;
     SNode snode = null;
     // simulation start issued flag ; for restart logic
     boolean issued_start = false;
-    // constructor takes clientID passed from command line from main()
+    // constructor takes ID passed from command line from main()
     // listenSocket is called as part of starting up
     SNode(int c_id)
     {
@@ -96,7 +97,7 @@ class SNode
                         System.out.println("=== size ="+s_list.size());
                     }
     		}
-                // start the random read/write simulation to access critical section based on Ricart-Agrawala algorithm
+                // start the random read/write simulation; sends trigger message to all clients
                 else if(m_START.find())
                 { 
                     start_or_restart();
@@ -141,8 +142,10 @@ class SNode
     	}
     }
 
+    // method to sent trigger message to all clients
     public void start_or_restart()
     {
+        // running for first time
         if(!issued_start)
         {
             System.out.println("**************TRIGGER START Random READ/WRITE simulation");
@@ -155,6 +158,7 @@ class SNode
             System.out.println("**************TRIGGER FINISH Random READ/WRITE simulation");
             issued_start = true;
         }
+        // consequent starts
         else
         {
             System.out.println("**************TRIGGER RESTART Random READ/WRITE simulation");
@@ -167,15 +171,18 @@ class SNode
         }
     }
 
+    // method to initiate restart mechanish
     public void restart_simulation()
     {
         synchronized(mutex)
         {
+            // reset the mutex algorithm
             mutex.reset_control();
         }
 
     }
 
+    // send restart message to clients
     public void send_restart_message()
     {
         System.out.println("restart from server");
@@ -224,13 +231,13 @@ class SNode
         System.exit(1);
     }
 
-    // method to create multiple instances of Ricart-Agrawala algorithm
-    // save it to a hash corresponding to filenames
+    // create instance of mutex
     public void create_mutexAlgorithm()
     {
         mutex = new mutexAlgorithm(snode,cnode,c_id);
     }
 
+    // method to keep track of client simulation finish counts
     public void increment_sim_finish_count()
     {
         int count = 0;
@@ -240,12 +247,16 @@ class SNode
             count = mutex.sword.finish_sim_count;
         }
 
+        // all clients have finished running the simulation
+        // initiate a message to Client 1 that relays to
+        // all servers to print server stats
         if(count == 5)
         {
             c_list.get(1).send_finish_stat_collection();
         }
     }
 
+    // print server stats
     public void print_stats()
     {
         String buf = "";
@@ -260,8 +271,10 @@ class SNode
         buf += "\n=======================================";
         System.out.print(buf);
     }
-    // method to create delay based on inputs in seconds
-    // adapted from stackOverflow
+
+    // delay generating method : time unit is ms
+    // min is the least amount of delay guaranteed to happen
+    // max is the randomness on top of this min value
     void randomDelay(double min, double max)
     {
         int random = (int)(max * Math.random() + min);
@@ -340,7 +353,7 @@ class SNode
     public static void main(String[] args)
     {
     	// check for valid number of command line arguments
-        // get client ID as argument
+        // get server ID as argument
     	if (args.length != 1)
     	{
     	    System.out.println("Usage: java SNode <server-id>");
