@@ -132,9 +132,6 @@ public class mutexAlgorithm
     {
         synchronized(sword)
         {
-            // calculate latency
-            sword.end_time = System.currentTimeMillis();
-            sword.crit_elapsed_time = sword.end_time - sword.start_time;
             // update totals
             sword.total_msgs_tx += sword.crit_msgs_tx;
             sword.total_msgs_rx += sword.crit_msgs_rx;

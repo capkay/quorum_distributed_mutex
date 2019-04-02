@@ -214,6 +214,12 @@ class ClientSockHandle
         // enter critical section when required number of replies are received
         if(target == msgs)
         {
+            synchronized(cnode.mutex)
+            {
+                // calculate latency
+                sword.end_time = System.currentTimeMillis();
+                sword.crit_elapsed_time = sword.end_time - sword.start_time;
+            }
             cnode.enter_crit_release();
         }
     }
