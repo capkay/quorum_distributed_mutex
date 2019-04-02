@@ -1,4 +1,4 @@
-# Distributed Mutual Exclusion based on Quorum-based systems
+# Distributed Mutual Exclusion based in Quorum-based systems
 
 ### 1. Modify ClientInfo.java and ServerInfo.java first to match hostnames where each of the 5 clients and 7 servers are going to be run.
 ### 2. Compile Java program (on any supported platform : specifically dc machines on UTD network) :
