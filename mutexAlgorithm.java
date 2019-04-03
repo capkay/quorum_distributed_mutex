@@ -62,6 +62,8 @@ public class mutexAlgorithm
             ts = sword.timestamp;
             sword.crit_msgs_tx = 0;
             sword.crit_msgs_rx = 0;
+            // mark current system time to measure latency
+            sword.start_time = System.currentTimeMillis();
         }
 
         // send requests to all nodes in quorum
