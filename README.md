@@ -47,13 +47,13 @@
 ### 7. To adjust delays in a Client `CRIT MIN VAR` and `REL DELAY` can be used. Here MIN is the minimum delay that the client will wait till issuing the next request to enter critical section. VAR is a the random amount by which waiting time is affected . WAIT time = MIN + VAR where VAR is random[0,VAR) . DELAY is the amount of time a client stays in the critical section. All time units in ms.
 ### 8. Simulation can be ended by entering 'FINISH' from Server 1's terminal.
 ### Sample delays:
-####Client 1 :
+#### Client 1 :
     `CRIT 1200 500`
-####Client 2 :
+#### Client 2 :
     `CRIT 800 100`
-####Client 3 :
+#### Client 3 :
     `CRIT 600 600`
-####Client 4 :
+#### Client 4 :
     `CRIT 900 92`
-####Client 5 :
+#### Client 5 :
     `CRIT 1000 200`
