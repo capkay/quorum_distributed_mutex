@@ -1,4 +1,4 @@
-# Distributed Mutual Exclusion based in Quorum-based systems
+# Distributed Mutual Exclusion in Quorum-based systems
 
 ### 1. Modify ClientInfo.java and ServerInfo.java first to match hostnames where each of the 5 clients and 7 servers are going to be run.
 ### 2. Compile Java program (on any supported platform : specifically dc machines on UTD network) :
@@ -48,12 +48,12 @@
 ### 8. Simulation can be ended by entering 'FINISH' from Server 1's terminal.
 ### Sample delays:
 #### Client 1 :
-    `CRIT 1200 500`
+`CRIT 1200 500`
 #### Client 2 :
-    `CRIT 800 100`
+`CRIT 800 100`
 #### Client 3 :
-    `CRIT 600 600`
+`CRIT 600 600`
 #### Client 4 :
-    `CRIT 900 92`
+`CRIT 900 92`
 #### Client 5 :
-    `CRIT 1000 200`
+`CRIT 1000 200`
