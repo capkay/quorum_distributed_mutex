@@ -162,6 +162,8 @@ class ServerSockHandle
     {
         synchronized(snode.mutex)
         {
+            // update totals
+            ++snode.mutex.sword.total_msgs_rx;
             // update logical clock
             snode.mutex.sword.timestamp = snode.mutex.sword.timestamp + 1;
             snode.mutex.sword.timestamp = Math.max(their_sn+1,snode.mutex.sword.timestamp);
