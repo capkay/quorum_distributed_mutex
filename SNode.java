@@ -260,6 +260,14 @@ class SNode
     public void print_stats()
     {
         String buf = "";
+        boolean lock = true;
+        while (lock)
+        {
+          synchronized(mutex)
+          {
+            lock = mutex.sword.locked;
+          }
+        }
         buf += "\n=== STATS for entire simulation : ";
         synchronized(mutex)
         {

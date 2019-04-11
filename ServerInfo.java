@@ -12,13 +12,13 @@ public class ServerInfo
     ServerInfo()
     {
         // create and populate data
-        IPData s1 = new IPData("localhost","9101");
-        IPData s2 = new IPData("localhost","9102");
-        IPData s3 = new IPData("localhost","9103");
-        IPData s4 = new IPData("localhost","9104");
-        IPData s5 = new IPData("localhost","9105");
-        IPData s6 = new IPData("localhost","9106");
-        IPData s7 = new IPData("localhost","9107");
+        IPData s1 = new IPData("dc01.utdallas.edu","9101");
+        IPData s2 = new IPData("dc02.utdallas.edu","9102");
+        IPData s3 = new IPData("dc03.utdallas.edu","9103");
+        IPData s4 = new IPData("dc04.utdallas.edu","9104");
+        IPData s5 = new IPData("dc05.utdallas.edu","9105");
+        IPData s6 = new IPData("dc06.utdallas.edu","9106");
+        IPData s7 = new IPData("dc07.utdallas.edu","9107");
         this.hmap.put(1,s1);
         this.hmap.put(2,s2);
         this.hmap.put(3,s3);
